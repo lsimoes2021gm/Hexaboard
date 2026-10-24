@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2fb344">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="HEXABOARD">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%}body{margin:0;font:14px system-ui,-apple-system,sans-serif}
+img{max-width:100%}[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<title>HEXABOARD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@500;700&display=swap">
+<style>
+/* Layout: one-screen app — HUD on top, canvas board fills the middle, action bar at the bottom */
+:root {
+  --bg: #eef2f7;
+  --panel: #ffffff;
+  --fg: #23304a;
+  --muted: #6b7890;
+  --cell: #cfd6e0;
+  --cell-edge: #b7c0cd;
+  --accent: #2fb344;
+  --accent-dark: #1f8a31;
+  --heart: #e5484d;
+  --warn-bg: #fff1f1;
+  --display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Nunito", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161b26; --panel: #222a3a; --fg: #e8edf6; --muted: #98a3b8;
+    --cell: #2e3749; --cell-edge: #252d3d; --warn-bg: #3a2229; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161b26; --panel: #222a3a; --fg: #e8edf6; --muted: #98a3b8;
+  --cell: #2e3749; --cell-edge: #252d3d; --warn-bg: #3a2229; color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--body);
+  display: flex; flex-direction: column; overflow: hidden;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 10px; box-sizing: border-box;
+  user-select: none; -webkit-user-select: none;
+}
+.hud { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 640px; width: 100%; margin: 0 auto; }
+.logo { font-family: var(--display); font-weight: 800; font-size: 26px; line-height: 1; letter-spacing: .5px; }
+.logo b { color: #3b82f6; } .logo i { font-style: normal; color: #f59e0b; }
+.stats { display: flex; gap: 14px; align-items: center; font-variant-numeric: tabular-nums; }
+.stat { display: flex; flex-direction: column; align-items: center; }
+.stat small { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.stat span { font-family: var(--display); font-weight: 800; font-size: 20px; line-height: 1.1; }
+.stat em { font-style: normal; font-size: 13px; color: var(--muted); }
+.hearts { color: var(--heart); font-size: 18px; letter-spacing: 2px; }
+.stage { flex: 1; min-height: 0; position: relative; max-width: 640px; width: 100%; margin: 6px auto; }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: manipulation; }
+.bar { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; max-width: 640px; width: 100%; margin: 0 auto; }
+button {
+  font-family: var(--display); font-weight: 800; font-size: 16px; border: 0; cursor: pointer;
+  padding: 8px 16px; border-radius: 14px; background: var(--panel); color: var(--fg);
+  box-shadow: 0 4px 0 var(--cell-edge);
+}
+button:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--cell-edge); }
+button:disabled { opacity: .45; cursor: default; transform: none; }
+button:focus-visible { outline: 3px solid #3b82f6; outline-offset: 2px; }
+button.primary { background: var(--accent); color: #fff; box-shadow: 0 4px 0 var(--accent-dark); }
+.cost { font-family: var(--body); font-size: 12px; color: var(--heart); font-weight: 700; }
+.overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.card { background: var(--panel); border-radius: 22px; padding: 22px 26px; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,.18); display: flex; flex-direction: column; gap: 10px; max-width: 300px; }
+.card h2 { font-family: var(--display); font-weight: 800; font-size: 30px; margin: 0; line-height: 1.1; }
+.card p { margin: 0; color: var(--muted); }
+.stars { font-size: 34px; color: #f5c518; letter-spacing: 4px; line-height: 1; }
+.card .row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.banner {
+  position: absolute; left: 50%; top: 8px; transform: translateX(-50%);
+  background: var(--warn-bg); color: var(--fg); border: 2px solid var(--heart);
+  border-radius: 14px; padding: 8px 14px; font-weight: 700; font-size: 14px; text-align: center;
+  max-width: calc(100% - 16px); box-sizing: border-box;
+}
+.hud-right { display: flex; align-items: center; gap: 12px; }
+.icon-btn { width: 34px; height: 34px; padding: 0; border-radius: 50%; font-size: 18px; }
+.intro {
+  position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-top: calc(env(safe-area-inset-top, 0px) + 24px);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+}
+.intro-inner { max-width: 460px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.intro .logo { font-size: 46px; text-align: center; }
+.intro .tagline { text-align: center; color: var(--muted); font-size: 16px; margin: -8px 0 0; text-wrap: balance; }
+.rules { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.rules li { display: grid; grid-template-columns: 76px 1fr; gap: 14px; align-items: center; background: var(--panel); border-radius: 18px; padding: 12px 14px; }
+.rules .ill { display: flex; justify-content: center; align-items: center; }
+.rules h3 { margin: 0 0 2px; font-family: var(--display); font-weight: 800; font-size: 18px; line-height: 1.15; }
+.rules p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.4; min-width: 0; }
+.combo { font-family: var(--display); font-weight: 800; font-size: 13px; color: #f59e0b; margin-left: 2px; }
+.breakdown { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 14px; }
+.breakdown td { padding: 3px 0; color: var(--muted); text-align: left; }
+.breakdown td + td { text-align: right; color: var(--fg); font-weight: 700; }
+.breakdown tr.total td { border-top: 2px solid var(--cell); padding-top: 6px; font-family: var(--display); font-size: 18px; color: var(--fg); }
+.record { font-family: var(--display); font-weight: 800; color: var(--accent); }
+.rank-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rank-head h2 { font-family: var(--display); font-weight: 800; font-size: 32px; margin: 0; }
+.rank-me { background: var(--panel); border-radius: 18px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.rank-me b { font-family: var(--display); font-size: 28px; font-variant-numeric: tabular-nums; }
+.rank-note { color: var(--muted); font-size: 13px; margin: 0; }
+.rank-list { list-style: none; margin: 0; padding: 0; background: var(--panel); border-radius: 18px; overflow: hidden; }
+.rank-list li { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--cell); font-variant-numeric: tabular-nums; }
+.rank-list li:first-child { border-top: 0; }
+.rank-list .pos { font-family: var(--display); font-weight: 800; font-size: 18px; color: var(--muted); text-align: center; }
+.rank-list li:nth-child(1) .pos { color: #e0a800; } .rank-list li:nth-child(2) .pos { color: #8a96a8; } .rank-list li:nth-child(3) .pos { color: #c27400; }
+.rank-list .who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.rank-list .who small { display: block; font-weight: 500; color: var(--muted); font-size: 12px; }
+.rank-list .pts { font-family: var(--display); font-weight: 800; font-size: 18px; }
+.rank-list li.me { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.rank-empty { padding: 18px 14px; color: var(--muted); text-align: center; }
+@media (max-width: 480px) { .hud .logo { display: none; } .hud { justify-content: center; } }
+.intro .go { font-size: 22px; padding: 12px 20px; align-self: center; min-width: 200px; }
+@media (prefers-reduced-motion: reduce) { button:active { transform: none; } }
+</style>
+
+<div class="hud">
+  <div class="logo"><b>HEXA</b><i>BOARD</i></div>
+  <div class="hud-right">
+  <div class="stats">
+    <div class="stat"><small>Nível</small><span id="lvl">1</span></div>
+    <div class="stat"><small>Pontos</small><span><span id="score">0</span><span class="combo" id="combo"></span></span></div>
+    <div class="stat"><small>Jogadas</small><span><span id="moves">0</span><em> / <span id="par">0</span></em></span></div>
+    <div class="stat"><small>Vidas</small><span class="hearts" id="hearts">♥♥♥</span></div>
+  </div>
+  <button class="icon-btn" id="btnRules" aria-label="Ver regras">?</button>
+  </div>
+</div>
+
+<div class="stage" id="stage">
+  <canvas id="cv"></canvas>
+  <div class="banner" id="banner" hidden>Sem saída! Desfaça uma jogada ou reinicie.</div>
+  <div class="overlay" id="overlay" hidden>
+    <div class="card">
+      <h2 id="ovTitle">Nível concluído!</h2>
+      <div class="stars" id="ovStars" hidden></div>
+      <p id="ovText"></p>
+      <table class="breakdown" id="ovTable" hidden></table>
+      <div class="record" id="ovRecord" hidden></div>
+      <div class="row">
+        <button id="ovBtn2" hidden>Repetir</button>
+        <button class="primary" id="ovBtn">Próximo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="bar">
+  <button id="btnUndo">Desfazer <span class="cost">−♥</span></button>
+  <button id="btnHint">Dica <span class="cost">−30</span></button>
+  <button id="btnRestart">Reiniciar</button>
+  <button id="btnRank">Ranking</button>
+  <button class="primary" id="btnNew">Pular nível</button>
+</div>
+
+<div class="intro" id="rankScreen" hidden>
+  <div class="intro-inner">
+    <div class="rank-head"><h2>Ranking</h2><button id="btnRankClose">Voltar</button></div>
+    <div class="rank-me"><span>Sua pontuação total<br><span class="rank-note" id="rankMeSub"></span></span><b id="rankMe">0</b></div>
+    <p class="rank-note" id="rankNote">Carregando ranking…</p>
+    <ol class="rank-list" id="rankList"><li class="rank-empty">Carregando…</li></ol>
+    <p class="rank-note">A pontuação total soma o seu melhor resultado em cada nível. Repita um nível para melhorar a nota dele.</p>
+  </div>
+</div>
+<div class="intro" id="intro" hidden>
+  <div class="intro-inner">
+    <div class="logo"><b>HEXA</b><i>BOARD</i></div>
+    <p class="tagline">Tire todas as peças do tabuleiro. Cada toque conta: escolha bem a ordem.</p>
+    <ul class="rules">
+      <li><div class="ill" data-ill="exit"></div><div><h3>Siga a seta</h3><p>Toque numa peça e ela anda na direção da seta. Com o caminho livre até a borda, ela sai do tabuleiro.</p></div></li>
+      <li><div class="ill" data-ill="slide"></div><div><h3>Bateu, ficou</h3><p>Se houver outra peça no caminho, ela desliza até encostar e fica parada ali. Isso pode travar o tabuleiro.</p></div></li>
+      <li><div class="ill" data-ill="rot"></div><div><h3>Peças com anel giram</h3><p>Sempre que uma vizinha sai do lugar, a peça com anel gira 60° no sentido horário.</p></div></li>
+      <li><div class="ill" data-ill="score"></div><div><h3>Pontuação</h3><p>Cada peça que sai vale 10 pontos, multiplicados pela corrente de saídas seguidas (até ×5). Deslizar custa 10 pontos e zera a corrente. Tirar uma peça logo depois de ela girar dá +15.</p></div></li>
+      <li><div class="ill" data-ill="meta"></div><div><h3>Vidas e estrelas</h3><p>Travou? Desfazer custa uma vida. A Dica aponta uma boa jogada e custa 30 pontos. No fim do nível, cada vida vale +100 e cada estrela +50.</p></div></li>
+    </ul>
+    <button class="primary go" id="btnPlay">Jogar</button>
+  </div>
+</div>
+
+<script>
+// ================= Configuração =================
+// Hexágonos "flat-top", colunas ímpares deslocadas para baixo (como no app).
+const DIRS = [
+  { dq: 0,  dr: -1, angle: -90,  color: "#f5c518", dark: "#c99a00" }, // cima
+  { dq: 1,  dr: -1, angle: -30,  color: "#2fb344", dark: "#1f8a31" }, // cima-direita
+  { dq: 1,  dr: 0,  angle: 30,   color: "#f59e0b", dark: "#c27400" }, // baixo-direita
+  { dq: 0,  dr: 1,  angle: 90,   color: "#e5484d", dark: "#b22a2f" }, // baixo
+  { dq: -1, dr: 1,  angle: 150,  color: "#3b82f6", dark: "#2360c4" }, // baixo-esquerda
+  { dq: -1, dr: 0,  angle: -150, color: "#8b3ddb", dark: "#6424a8" }, // cima-esquerda
+];
+const SOLVER_CAP = 6000; // limite de nós da busca (mantém a UI fluida)
+
+const cv = document.getElementById("cv");
+const ctx = cv.getContext("2d");
+const stage = document.getElementById("stage");
+const $ = id => document.getElementById(id);
+
+let level = 1;
+try { level = parseInt(localStorage.getItem("hexa_level_v4")) || 1; } catch (e) {}
+
+let RADIUS, CELLS, pieces, initial, par, solution, lives, moves, history, solIdx;
+// Pontuação do nível atual
+let sc, lastRotated = new Set();
+const newScore = () => ({ exit: 0, rot: 0, slide: 0, hint: 0, streak: 0 });
+const levelPoints = () => sc.exit + sc.rot - sc.slide - sc.hint;
+// Melhor pontuação por nível (a soma é o total do ranking)
+let bests = {};
+try { bests = JSON.parse(localStorage.getItem("hexa_bests_v4") || "{}") || {}; } catch (e) {}
+const totalScore = () => Object.values(bests).reduce((a, b) => a + b, 0);
+const maxLevel = () => Math.max(0, ...Object.keys(bests).map(Number));
+let size, ox, oy, anims = [], hintId = null, busy = false, stuck = false, seed = 0;
+
+// ================= Coordenadas =================
+// Tabuleiro hexagonal de raio RADIUS, centrado na casa (0,0).
+const key = (c, r) => (c + 32) * 128 + (r + 32);
+function inBoard(c, r) {
+  const ar = r - (c - (c & 1)) / 2;
+  return (Math.abs(c) + Math.abs(ar) + Math.abs(c + ar)) / 2 <= RADIUS;
+}
+function buildCells(R) {
+  const out = [];
+  for (let q = -R; q <= R; q++)
+    for (let ar = Math.max(-R, -q - R); ar <= Math.min(R, -q + R); ar++)
+      out.push({ c: q, r: ar + (q - (q & 1)) / 2 });
+  return out;
+}
+function step(c, r, d) {
+  const ar = r - (c - (c & 1)) / 2;            // offset -> axial
+  const q = c + DIRS[d].dq, rr = ar + DIRS[d].dr;
+  return { c: q, r: rr + (q - (q & 1)) / 2 };  // axial -> offset
+}
+function stepBack(c, r, d) {
+  const ar = r - (c - (c & 1)) / 2;
+  const q = c - DIRS[d].dq, rr = ar - DIRS[d].dr;
+  return { c: q, r: rr + (q - (q & 1)) / 2 };
+}
+function center(c, r) {
+  return { x: ox + size * 1.5 * c, y: oy + Math.sqrt(3) * size * (r + 0.5 * (c & 1)) };
+}
+
+// ================= Regras =================
+// Resultado de tocar numa peça: sai (exit), desliza até parar (slide) ou não se move (none).
+function moveOf(p, occ) {
+  let cur = { c: p.c, r: p.r }, n = step(p.c, p.r, p.d), steps = 0;
+  while (inBoard(n.c, n.r)) {
+    if (occ.has(key(n.c, n.r))) {
+      return steps === 0 ? { type: "none", blocker: n } : { type: "slide", to: cur, blocker: n };
+    }
+    cur = n; n = step(n.c, n.r, p.d); steps++;
+  }
+  return { type: "exit" };
+}
+function occOf(list) { const m = new Map(); for (const p of list) m.set(key(p.c, p.r), p); return m; }
+function stateKey(list) { return list.map(p => p.id + ":" + p.c + "," + p.r + "," + p.d).sort().join("|"); }
+// Células vizinhas (as 6 direções)
+function neighborKeys(c, r) {
+  const out = new Set();
+  for (let d = 0; d < 6; d++) { const n = step(c, r, d); out.add(key(n.c, n.r)); }
+  return out;
+}
+function legalMoves(list) {
+  const occ = occOf(list), out = [];
+  for (const p of list) { const m = moveOf(p, occ); if (m.type !== "none") out.push({ p, m }); }
+  out.sort((a, b) => (a.m.type === "exit" ? 0 : 1) - (b.m.type === "exit" ? 0 : 1));
+  return out;
+}
+// Aplica a jogada. Peças giratórias vizinhas da casa de ORIGEM giram 60° (horário).
+function apply(list, p, m) {
+  const nb = neighborKeys(p.c, p.r);
+  const out = [];
+  for (const x of list) {
+    if (x.id === p.id) { if (m.type === "slide") out.push({ ...x, c: m.to.c, r: m.to.r }); continue; }
+    if (x.rot && nb.has(key(x.c, x.r))) out.push({ ...x, d: (x.d + 1) % 6 });
+    else out.push(x);
+  }
+  return out;
+}
+
+// ================= Solver (busca em profundidade com memória) =================
+// Retorna { ok: true/false/null, first } — null = não decidiu dentro do limite.
+function solve(list, cap = SOLVER_CAP) {
+  const dead = new Set(); let nodes = 0;
+  function dfs(s) {
+    if (s.length === 0) return [];
+    const k = stateKey(s);
+    if (dead.has(k)) return null;
+    if (++nodes > cap) throw "cap";
+    for (const { p, m } of legalMoves(s)) {
+      const r = dfs(apply(s, p, m));
+      if (r) return [{ id: p.id }, ...r];
+    }
+    dead.add(k); return null;
+  }
+  try { const path = dfs(list); return { ok: !!path, path }; }
+  catch (e) { return { ok: null }; }
+}
+
+// ================= Gerador (jogo reverso) =================
+// Começa vazio e desfaz jogadas: "des-sair" (peça entra por um caminho livre)
+// ou "des-deslizar" (peça recua ao longo da seta, se há uma peça logo à frente dela).
+// Assim todo nível tem solução, e a solução exige deslizes na ordem certa.
+function rand() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
+function pick(a) { return a[Math.floor(rand() * a.length)]; }
+
+function generateOnce(lv) {
+  const target = Math.floor(CELLS.length * Math.min(0.45, 0.28 + lv * 0.02));
+  const slideRate = Math.min(0.75, 0.35 + lv * 0.04);
+  const rotRate = lv < 3 ? 0 : Math.min(0.3, 0.06 + (lv - 3) * 0.03);
+  let list = [], rev = [], id = 0, tries = 0;
+  // Desfaz o giro: antes da jogada, as giratórias vizinhas da origem estavam 60° atrás.
+  const unrotate = (l, c, r, moverId) => {
+    const nb = neighborKeys(c, r);
+    return l.map(x => x.id !== moverId && x.rot && nb.has(key(x.c, x.r)) ? { ...x, d: (x.d + 5) % 6 } : x);
+  };
+  while (list.length < target && tries++ < target * 120) {
+    const occ = occOf(list);
+    if (list.length > 2 && rand() < slideRate) {
+      // des-deslizar: peça com outra logo à frente e espaço livre atrás
+      const cands = list.filter(p => {
+        const f = step(p.c, p.r, p.d);
+        if (!inBoard(f.c, f.r) || !occ.has(key(f.c, f.r))) return false;
+        const b = stepBack(p.c, p.r, p.d);
+        return inBoard(b.c, b.r) && !occ.has(key(b.c, b.r));
+      });
+      if (!cands.length) continue;
+      const p = pick(cands), back = [];
+      let b = stepBack(p.c, p.r, p.d);
+      while (inBoard(b.c, b.r) && !occ.has(key(b.c, b.r))) { back.push(b); b = stepBack(b.c, b.r, p.d); }
+      const to = pick(back);
+      list = list.map(x => x.id === p.id ? { ...x, c: to.c, r: to.r } : x);
+      list = unrotate(list, to.c, to.r, p.id);
+      rev.push(p.id);
+    } else {
+      // des-sair: peça nova entra por um caminho livre
+      const { c, r } = pick(CELLS);
+      if (occ.has(key(c, r))) continue;
+      const dirs = [0,1,2,3,4,5].sort(() => rand() - 0.5);
+      for (const d of dirs) {
+        if (moveOf({ c, r, d }, occ).type === "exit") {
+          const np = { id: id++, c, r, d, rot: rand() < rotRate };
+          list = unrotate(list, c, r, np.id);
+          list.push(np); rev.push(np.id); break;
+        }
+      }
+    }
+  }
+  return { list, sol: rev.slice().reverse() };
+}
+
+// Partidas simuladas. careful=true: sempre prefere peça livre (jogador atento).
+// careful=false: toca em qualquer peça que se mova (jogador descuidado).
+function playouts(list, runs, careful) {
+  let fails = 0, best = Infinity;
+  for (let i = 0; i < runs; i++) {
+    let s = list, n = 0;
+    while (s.length) {
+      const lm = legalMoves(s);
+      if (!lm.length) { fails++; n = Infinity; break; }
+      const exits = careful ? lm.filter(x => x.m.type === "exit") : [];
+      const { p, m } = pick(exits.length ? exits : lm);
+      s = apply(s, p, m); n++;
+    }
+    best = Math.min(best, n);
+  }
+  return { fail: fails / runs, best };
+}
+
+function generate(lv) {
+  seed = lv * 7919 + 13;
+  RADIUS = lv <= 2 ? 3 : lv <= 5 ? 4 : lv <= 8 ? 5 : 6;
+  CELLS = buildCells(RADIUS);
+  const candidates = lv <= 1 ? 1 : 8;
+  let best = null, bestScore = -1; // -1 = nenhum ainda
+  for (let i = 0; i < candidates; i++) {
+    const g = generateOnce(lv);
+    const careless = playouts(g.list, 24, false);
+    const careful = playouts(g.list, 12, true);
+    // Mira numa taxa de travamento do jogador atento que cresce com o nível
+    const want = Math.min(0.85, Math.max(0, (lv - 2) * 0.12));
+    const score = -Math.abs(careful.fail - want) + careless.fail * 0.1;
+    if (bestScore === -1 || score > bestScore) { bestScore = score; best = { ...g, par: Math.min(g.sol.length, careful.best) }; }
+  }
+  return best;
+}
+
+// ================= Estado do jogo =================
+function startLevel(lv, reuse) {
+  level = lv;
+  try { localStorage.setItem("hexa_level_v4", String(level)); } catch (e) {}
+  if (!reuse) { const g = generate(level); initial = g.list; par = g.par; solution = g.sol; }
+  pieces = initial.map(p => ({ ...p }));
+  lives = 3; moves = 0; history = []; solIdx = 0; sc = newScore(); lastRotated = new Set(); anims = []; hintId = null; busy = false; stuck = false;
+  $("overlay").hidden = true; $("banner").hidden = true;
+  resize(); updateHud();
+}
+function updateHud() {
+  $("lvl").textContent = level;
+  $("moves").textContent = moves;
+  $("score").textContent = levelPoints();
+  $("combo").textContent = sc.streak >= 2 ? " ×" + Math.min(5, sc.streak) : "";
+  $("par").textContent = par;
+  $("hearts").textContent = "♥".repeat(lives) + "♡".repeat(3 - lives);
+  $("btnUndo").disabled = !history.length || lives <= 0;
+}
+function showOverlay(title, text, btn, fn, stars, btn2, fn2, table, record) {
+  $("ovTable").hidden = !table; if (table) $("ovTable").innerHTML = table;
+  $("ovRecord").hidden = !record; if (record) $("ovRecord").textContent = record;
+  $("ovTitle").textContent = title; $("ovText").textContent = text;
+  $("ovBtn").textContent = btn; $("ovBtn").onclick = fn;
+  $("ovStars").hidden = stars == null;
+  if (stars != null) $("ovStars").textContent = "★".repeat(stars) + "☆".repeat(3 - stars);
+  $("ovBtn2").hidden = !btn2;
+  if (btn2) { $("ovBtn2").textContent = btn2; $("ovBtn2").onclick = fn2; }
+  $("overlay").hidden = false;
+}
+
+function checkStuck() {
+  if (!pieces.length) return;
+  let dead;
+  if (!legalMoves(pieces).length) dead = true;
+  else if (solIdx >= 0) dead = false; // ainda no caminho da solução
+  else dead = solve(pieces, SOLVER_CAP * 2).ok === false;
+  stuck = dead;
+  $("banner").hidden = !dead;
+  if (dead && lives <= 0) {
+    showOverlay("Travou!", "Sem vidas para desfazer. Reinicie o nível e tente outra ordem.", "Reiniciar", () => startLevel(level, true));
+  }
+}
+
+// ================= Interação =================
+function tap(x, y) {
+  if (busy || !$("overlay").hidden) return;
+  let best = null, bd = size * 0.95;
+  for (const p of pieces) {
+    const c = center(p.c, p.r), d = Math.hypot(c.x - x, c.y - y);
+    if (d < bd) { bd = d; best = p; }
+  }
+  if (!best) return;
+  hintId = null;
+  const occ = occOf(pieces), m = moveOf(best, occ), from = center(best.c, best.r);
+
+  if (m.type === "none") {
+    // Encostada em outra peça: só treme, não gasta jogada
+    anims.push({ piece: best, from, to: from, t: 0, dur: 300, type: "nudge", blockKey: key(m.blocker.c, m.blocker.r) });
+    return;
+  }
+  history.push({ pieces: pieces.map(p => ({ ...p })), moves, solIdx, sc: { ...sc }, lastRotated });
+  solIdx = solIdx >= 0 && solution[solIdx] === best.id ? solIdx + 1 : -1;
+  moves++;
+  const wasRotated = lastRotated.has(best.id);
+  const before = new Map(pieces.map(p => [p.id, p.d]));
+  if (m.type === "exit") {
+    pieces = apply(pieces, best, m);
+    sc.streak++;
+    const mult = Math.min(5, sc.streak), pts = 10 * mult;
+    sc.exit += pts;
+    popup(from.x, from.y - size * 0.6, mult > 1 ? `+${pts} ×${mult}` : `+${pts}`, mult > 1 ? "#f59e0b" : "#2fb344");
+    if (best.rot && wasRotated) { sc.rot += 15; popup(from.x, from.y - size * 1.5, "Giro +15", "#8b3ddb"); }
+    const a = DIRS[best.d].angle * Math.PI / 180;
+    const dist = Math.max(cv.clientWidth, cv.clientHeight) * 1.2;
+    anims.push({ piece: best, from, to: { x: from.x + Math.cos(a) * dist, y: from.y + Math.sin(a) * dist }, t: 0, dur: 450, type: "fly" });
+    lastRotated = new Set(pieces.filter(p => before.get(p.id) !== p.d).map(p => p.id));
+    updateHud();
+    if (!pieces.length) {
+      const stars = moves <= par ? 3 : moves <= par + 3 ? 2 : 1;
+      setTimeout(() => finishLevel(stars), 500);
+    } else setTimeout(checkStuck, 60);
+  } else {
+    pieces = apply(pieces, best, m);
+    sc.slide += 10; sc.streak = 0;
+    popup(from.x, from.y - size * 0.6, "−10", "#e5484d");
+    const moved = pieces.find(p => p.id === best.id);
+    busy = true;
+    lastRotated = new Set(pieces.filter(p => before.has(p.id) && before.get(p.id) !== p.d).map(p => p.id));
+    anims.push({ piece: moved, from, to: center(m.to.c, m.to.r), t: 0, dur: 360, type: "slide", blockKey: key(m.blocker.c, m.blocker.r) });
+    updateHud();
+    setTimeout(checkStuck, 380);
+  }
+}
+cv.addEventListener("pointerdown", e => {
+  const r = cv.getBoundingClientRect();
+  tap(e.clientX - r.left, e.clientY - r.top);
+});
+$("btnUndo").onclick = () => {
+  if (!history.length || lives <= 0 || busy) return;
+  const h = history.pop();
+  pieces = h.pieces; moves = h.moves; solIdx = h.solIdx; sc = { ...h.sc, hint: sc.hint }; lastRotated = h.lastRotated; lives--; anims = []; hintId = null;
+  stuck = false; $("banner").hidden = true;
+  updateHud(); setTimeout(checkStuck, 30);
+};
+function finishLevel(stars) {
+  const base = levelPoints(), lifeB = lives * 100, starB = stars * 50;
+  const total = Math.max(0, base + lifeB + starB);
+  const prev = bests[level];
+  const isRecord = prev == null || total > prev;
+  if (isRecord) {
+    bests[level] = total;
+    try { localStorage.setItem("hexa_bests_v4", JSON.stringify(bests)); } catch (e) {}
+    submitRanking();
+  }
+  const row = (label, v, sign = "+") => `<tr><td>${label}</td><td>${v === 0 ? "0" : (v > 0 ? sign : "−") + Math.abs(v)}</td></tr>`;
+  let t = row("Peças e correntes", sc.exit);
+  if (sc.rot) t += row("Bônus de giro", sc.rot);
+  if (sc.slide) t += row("Deslizes", -sc.slide);
+  if (sc.hint) t += row("Dicas", -sc.hint);
+  t += row(`Vidas (${lives} × 100)`, lifeB) + row(`Estrelas (${stars} × 50)`, starB);
+  t += `<tr class="total"><td>Total do nível</td><td>${total}</td></tr>`;
+  const rec = isRecord ? (prev == null ? "" : `Novo recorde neste nível! (antes: ${prev})`) : `Seu recorde neste nível: ${prev}`;
+  showOverlay("Nível concluído!", `${moves} jogadas (meta: ${par}).`, "Próximo", () => startLevel(level + 1),
+    stars, "Repetir", () => startLevel(level, true), t, rec || null);
+}
+$("btnRestart").onclick = () => startLevel(level, true);
+$("btnNew").onclick = () => startLevel(level + 1);
+$("btnHint").onclick = () => {
+  if (stuck || hintId !== null || !pieces.length) return;
+  sc.hint += 30; updateHud();
+  if (solIdx >= 0 && solIdx < solution.length) { hintId = solution[solIdx]; return; }
+  const r = solve(pieces, SOLVER_CAP * 4);
+  if (r.ok && r.path.length) { hintId = r.path[0].id; return; }
+  // fallback: qualquer peça que sai direto
+  const ex = legalMoves(pieces).find(x => x.m.type === "exit");
+  if (ex) hintId = ex.p.id;
+};
+
+// ================= Desenho =================
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = stage.clientWidth, h = stage.clientHeight;
+  cv.width = w * dpr; cv.height = h * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // limites do tabuleiro em unidades de "size"
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const { c, r } of CELLS) {
+    const x = 1.5 * c, y = Math.sqrt(3) * (r + 0.5 * (c & 1));
+    x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+  }
+  size = Math.min(w / (x1 - x0 + 2), h / (y1 - y0 + Math.sqrt(3) + 0.3), 40);
+  ox = w / 2 - size * (x0 + x1) / 2; oy = h / 2 - size * (y0 + y1) / 2;
+}
+window.addEventListener("resize", resize);
+
+function hexPath(x, y, s) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI / 3 * i, px = x + s * Math.cos(a), py = y + s * Math.sin(a);
+    i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+  }
+  ctx.closePath();
+}
+const shownAngle = new Map(); // ângulo exibido por peça (anima o giro)
+function angleFor(p, dt) {
+  const target = DIRS[p.d].angle;
+  let a = shownAngle.has(p.id) ? shownAngle.get(p.id) : target;
+  let diff = ((target - a) % 360 + 540) % 360 - 180;
+  a = Math.abs(diff) < 0.5 ? target : a + diff * Math.min(1, dt / 90);
+  shownAngle.set(p.id, a); return a;
+}
+function drawPiece(p, x, y, glow = false, ang = DIRS[p.d].angle) {
+  const D = DIRS[p.d], s = size * 0.94, depth = size * 0.16;
+  if (glow) { ctx.save(); ctx.shadowColor = "#fff"; ctx.shadowBlur = 18; }
+  hexPath(x, y + depth, s); ctx.fillStyle = D.dark; ctx.fill();
+  hexPath(x, y, s); ctx.fillStyle = D.color; ctx.fill();
+  if (glow) ctx.restore();
+  hexPath(x, y - s * 0.08, s * 0.82); ctx.fillStyle = "rgba(255,255,255,.12)"; ctx.fill();
+  if (p.rot) {
+    // anel com setinha: indica peça giratória
+    ctx.save(); ctx.translate(x, y);
+    ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = Math.max(1.5, size * 0.07);
+    const R = s * 0.7;
+    ctx.beginPath(); ctx.arc(0, 0, R, -Math.PI * 0.35, Math.PI * 1.45); ctx.stroke();
+    const ea = Math.PI * 1.45, ex = R * Math.cos(ea), ey = R * Math.sin(ea), t = s * 0.16;
+    ctx.beginPath(); ctx.moveTo(ex - t, ey - t * 0.2); ctx.lineTo(ex + t * 0.2, ey); ctx.lineTo(ex - t * 0.1, ey + t);
+    ctx.stroke(); ctx.restore();
+  }
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang * Math.PI / 180);
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = Math.max(2, size * 0.13); ctx.lineCap = "round"; ctx.lineJoin = "round";
+  const L = s * (p.rot ? 0.34 : 0.42);
+  ctx.beginPath(); ctx.moveTo(-L, 0); ctx.lineTo(L, 0);
+  ctx.moveTo(L * 0.4, -L * 0.6); ctx.lineTo(L, 0); ctx.lineTo(L * 0.4, L * 0.6);
+  ctx.stroke(); ctx.restore();
+}
+const ease = t => 1 - Math.pow(1 - t, 3);
+function popup(x, y, text, color) { anims.push({ type: "text", x, y, text, color, t: 0, dur: 900 }); }
+let lastT = performance.now(), pulse = 0;
+function frame(now) {
+  const dt = Math.min(50, now - lastT); lastT = now; pulse += dt / 300;
+  const css = getComputedStyle(document.documentElement);
+  const w = cv.width, h = cv.height;
+  ctx.clearRect(0, 0, w, h);
+  const cellC = css.getPropertyValue("--cell"), edgeC = css.getPropertyValue("--cell-edge");
+  for (const cell of CELLS) {
+    const p = center(cell.c, cell.r);
+    hexPath(p.x, p.y + size * 0.08, size * 0.94); ctx.fillStyle = edgeC; ctx.fill();
+    hexPath(p.x, p.y, size * 0.94); ctx.fillStyle = cellC; ctx.fill();
+  }
+  const movingIds = new Set(anims.filter(a => a.type === "slide").map(a => a.piece.id));
+  const shake = new Map();
+  for (const a of anims) {
+    if (a.type === "slide" && a.t > 0.7) shake.set(a.blockKey, Math.sin(a.t * 50) * size * 0.07);
+    if (a.type === "nudge") { shake.set(key(a.piece.c, a.piece.r), Math.sin(a.t * 40) * size * 0.08 * (1 - a.t)); shake.set(a.blockKey, Math.sin(a.t * 40) * size * 0.05 * (1 - a.t)); }
+  }
+  const sorted = pieces.slice().sort((a, b) => center(a.c, a.r).y - center(b.c, b.r).y);
+  for (const p of sorted) {
+    if (movingIds.has(p.id)) continue;
+    const c = center(p.c, p.r);
+    const lift = hintId === p.id ? Math.sin(pulse) * size * 0.12 - size * 0.1 : 0;
+    drawPiece(p, c.x + (shake.get(key(p.c, p.r)) || 0), c.y + lift, hintId === p.id, angleFor(p, dt));
+  }
+  anims = anims.filter(a => {
+    a.t = Math.min(1, a.t + dt / a.dur);
+    if (a.type === "fly" || a.type === "slide") {
+      const k = a.type === "fly" ? a.t * a.t : ease(a.t);
+      drawPiece(a.piece, a.from.x + (a.to.x - a.from.x) * k, a.from.y + (a.to.y - a.from.y) * k, false, angleFor(a.piece, dt));
+    }
+    if (a.type === "text") {
+      ctx.save(); ctx.globalAlpha = 1 - a.t * a.t;
+      ctx.font = `800 ${Math.max(14, size * 0.75)}px "Baloo 2", sans-serif`; ctx.textAlign = "center";
+      ctx.lineWidth = 4; ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.fillStyle = a.color;
+      const yy = a.y - ease(a.t) * size * 1.2;
+      ctx.strokeText(a.text, a.x, yy); ctx.fillText(a.text, a.x, yy); ctx.restore();
+    }
+    if (a.t >= 1 && a.type === "slide") busy = false;
+    return a.t < 1;
+  });
+  requestAnimationFrame(frame);
+}
+
+// ================= Ranking compartilhado =================
+let db = null, user = null, myId = null, rankDocs = [], writeChain = Promise.resolve(), canWrite = null;
+function renderRanking() {
+  $("rankMe").textContent = totalScore();
+  const ml = maxLevel();
+  $("rankMeSub").textContent = ml ? `Até o nível ${ml}` : "Termine um nível para pontuar";
+  const list = $("rankList");
+  if (!db) {
+    $("rankNote").textContent = "O ranking online ainda não está ligado nesta versão.";
+    list.innerHTML = '<li class="rank-empty">Entre na sua conta do Claude para ver o ranking.</li>';
+    return;
+  }
+  $("rankNote").textContent = canWrite === false
+    ? "Você pode ver o ranking, mas seu acesso a este jogo é só de leitura, então sua pontuação não entra nele."
+    : "Top 20 de quem joga neste link. Atualiza ao vivo.";
+  if (!rankDocs.length) { list.innerHTML = '<li class="rank-empty">Ninguém no ranking ainda. Termine um nível para ser o primeiro.</li>'; return; }
+  const ids = rankDocs.map(d => d.id);
+  const draw = (profiles) => {
+    list.textContent = "";
+    rankDocs.forEach((d, i) => {
+      const v = d.data() || {};
+      const li = document.createElement("li");
+      if (d.id === myId) li.className = "me";
+      const pos = document.createElement("span"); pos.className = "pos"; pos.textContent = i + 1;
+      const who = document.createElement("span"); who.className = "who";
+      const nm = (profiles && profiles[d.id] && profiles[d.id].name) || "Jogador";
+      who.textContent = d.id === myId ? nm + " (você)" : nm;
+      const sub = document.createElement("small"); sub.textContent = "até o nível " + (v.maxLevel || 0); who.appendChild(sub);
+      const pts = document.createElement("span"); pts.className = "pts"; pts.textContent = Number(v.score || 0).toLocaleString("pt-BR");
+      li.append(pos, who, pts); list.appendChild(li);
+    });
+  };
+  draw(null);
+  if (user) user.profiles(ids).then(draw).catch(() => {});
+}
+function submitRanking() {
+  if (!db || !myId || canWrite === false) return;
+  const body = { score: totalScore(), maxLevel: maxLevel(), at: Date.now() };
+  writeChain = writeChain.then(() => db.doc("ranking/" + myId).set(body)).catch(e => {
+    if (e && e.code === "invalid_argument") { canWrite = false; renderRanking(); }
+  });
+}
+async function initRanking() {
+  try {
+    if (!window.claude || !window.claude.use) return;
+    [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+    if (user) {
+      myId = await user.id();
+      const w = user.can ? await user.can("data.write") : null;
+      canWrite = w === false ? false : true;
+    }
+    if (!db) { renderRanking(); return; }
+    db.collection("ranking").orderBy("score", "desc").limit(20).onSnapshot(
+      snap => { rankDocs = snap.docs; if (!$("rankScreen").hidden) renderRanking(); },
+      () => { db = null; renderRanking(); }
+    );
+    // Sobe a pontuação local caso o jogador já tenha jogado antes do ranking existir
+    if (myId && totalScore() > 0) {
+      const mine = await db.doc("ranking/" + myId).get();
+      const v = mine.exists ? mine.data() : null;
+      if (!v || (v.score || 0) < totalScore()) submitRanking();
+    }
+  } catch (e) { renderRanking(); }
+}
+$("btnRank").onclick = () => { renderRanking(); $("rankScreen").hidden = false; $("btnRankClose").focus(); };
+$("btnRankClose").onclick = () => { $("rankScreen").hidden = true; };
+initRanking();
+
+// ================= Apresentação (só na primeira vez) =================
+function hexSvg(d, rot, extra = "") {
+  const D = DIRS[d], pts = [];
+  for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i; pts.push((20 * Math.cos(a)).toFixed(1) + "," + (20 * Math.sin(a)).toFixed(1)); }
+  const L = rot ? 7 : 9;
+  const ring = rot ? '<path d="M 6.3 -11.7 A 13.5 13.5 0 1 1 -3.5 -13" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>' : "";
+  return `<g ${extra}><polygon points="${pts.join(" ")}" transform="translate(0 3.5)" fill="${D.dark}"/>` +
+    `<polygon points="${pts.join(" ")}" fill="${D.color}"/>${ring}` +
+    `<g transform="rotate(${D.angle})" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">` +
+    `<path d="M -${L} 0 L ${L} 0 M ${L * 0.4} -${L * 0.6} L ${L} 0 L ${L * 0.4} ${L * 0.6}"/></g></g>`;
+}
+const ILL = {
+  exit: `<svg width="64" height="64" viewBox="-30 -30 60 60">${hexSvg(0, false)}</svg>`,
+  slide: `<svg width="76" height="64" viewBox="-24 -32 76 64">${hexSvg(2, false)}<g transform="translate(32 18)">${hexSvg(5, false)}</g></svg>`,
+  rot: `<svg width="64" height="64" viewBox="-30 -30 60 60">${hexSvg(1, true)}</svg>`,
+  score: `<svg width="64" height="64" viewBox="0 0 64 64"><text x="32" y="30" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="800" font-size="22" fill="#2fb344">+40</text><text x="32" y="54" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="800" font-size="20" fill="#f59e0b">×4</text></svg>`,
+  meta: `<svg width="64" height="64" viewBox="0 0 64 64"><text x="32" y="30" text-anchor="middle" font-size="22" fill="#e5484d">♥♥♥</text><text x="32" y="56" text-anchor="middle" font-size="22" fill="#f5c518">★★★</text></svg>`,
+};
+document.querySelectorAll("[data-ill]").forEach(el => { el.innerHTML = ILL[el.dataset.ill]; });
+function openIntro() { $("intro").hidden = false; $("btnPlay").focus(); }
+$("btnPlay").onclick = () => {
+  $("intro").hidden = true;
+  try { localStorage.setItem("hexa_intro_seen", "1"); } catch (e) {}
+};
+$("btnRules").onclick = openIntro;
+let seen = false;
+try { seen = localStorage.getItem("hexa_intro_seen") === "1"; } catch (e) {}
+if (!seen) openIntro();
+
+startLevel(level);
+requestAnimationFrame(frame);
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+</script>
+</body>
+</html>
