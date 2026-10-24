@@ -128,6 +128,12 @@ button.primary { background: var(--accent); color: #fff; box-shadow: 0 4px 0 var
 .rank-list li.me { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .rank-empty { padding: 18px 14px; color: var(--muted); text-align: center; }
 @media (max-width: 480px) { .hud .logo { display: none; } .hud { justify-content: center; } }
+.nick { display: flex; flex-direction: column; gap: 6px; }
+.nick label { font-weight: 700; font-size: 14px; }
+.nick input { font: 600 17px var(--body); padding: 10px 14px; border-radius: 14px; border: 2px solid var(--cell); background: var(--panel); color: var(--fg); min-width: 0; }
+.nick input:focus { outline: none; border-color: #3b82f6; }
+.nick-row > div { display: flex; gap: 8px; }
+.nick-row input { flex: 1; }
 .intro .go { font-size: 22px; padding: 12px 20px; align-self: center; min-width: 200px; }
 @media (prefers-reduced-motion: reduce) { button:active { transform: none; } }
 </style>
@@ -175,6 +181,10 @@ button.primary { background: var(--accent); color: #fff; box-shadow: 0 4px 0 var
   <div class="intro-inner">
     <div class="rank-head"><h2>Ranking</h2><button id="btnRankClose">Voltar</button></div>
     <div class="rank-me"><span>Sua pontuação total<br><span class="rank-note" id="rankMeSub"></span></span><b id="rankMe">0</b></div>
+    <div class="nick nick-row">
+      <label for="rankName">Seu apelido</label>
+      <div><input id="rankName" maxlength="20" placeholder="Jogador"><button id="btnSaveName">Salvar</button></div>
+    </div>
     <p class="rank-note" id="rankNote">Carregando ranking…</p>
     <ol class="rank-list" id="rankList"><li class="rank-empty">Carregando…</li></ol>
     <p class="rank-note">A pontuação total soma o seu melhor resultado em cada nível. Repita um nível para melhorar a nota dele.</p>
@@ -191,6 +201,10 @@ button.primary { background: var(--accent); color: #fff; box-shadow: 0 4px 0 var
       <li><div class="ill" data-ill="score"></div><div><h3>Pontuação</h3><p>Cada peça que sai vale 10 pontos, multiplicados pela corrente de saídas seguidas (até ×5). Deslizar custa 10 pontos e zera a corrente. Tirar uma peça logo depois de ela girar dá +15.</p></div></li>
       <li><div class="ill" data-ill="meta"></div><div><h3>Vidas e estrelas</h3><p>Travou? Desfazer custa uma vida. A Dica aponta uma boa jogada e custa 30 pontos. No fim do nível, cada vida vale +100 e cada estrela +50.</p></div></li>
     </ul>
+    <div class="nick">
+      <label for="nick">Seu apelido no ranking</label>
+      <input id="nick" maxlength="20" placeholder="Ex.: Luciano" autocomplete="nickname">
+    </div>
     <button class="primary go" id="btnPlay">Jogar</button>
   </div>
 </div>
@@ -643,73 +657,62 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-// ================= Ranking compartilhado =================
-let db = null, user = null, myId = null, rankDocs = [], writeChain = Promise.resolve(), canWrite = null;
+// ================= Ranking online (Firebase) =================
+let rk = null, myId = null, rankRows = [], rankState = "loading", writeChain = Promise.resolve();
+function getName() { try { return localStorage.getItem("hexa_name") || ""; } catch (e) { return ""; } }
+function setName(n) {
+  n = String(n || "").replace(/\s+/g, " ").trim().slice(0, 20);
+  try { localStorage.setItem("hexa_name", n); } catch (e) {}
+  return n;
+}
 function renderRanking() {
-  $("rankMe").textContent = totalScore();
+  $("rankMe").textContent = totalScore().toLocaleString("pt-BR");
   const ml = maxLevel();
   $("rankMeSub").textContent = ml ? `Até o nível ${ml}` : "Termine um nível para pontuar";
+  if (document.activeElement !== $("rankName")) $("rankName").value = getName();
   const list = $("rankList");
-  if (!db) {
-    $("rankNote").textContent = "O ranking online ainda não está ligado nesta versão.";
-    list.innerHTML = '<li class="rank-empty">Entre na sua conta do Claude para ver o ranking.</li>';
-    return;
+  if (rankState === "loading") { $("rankNote").textContent = "Conectando ao ranking…"; list.innerHTML = '<li class="rank-empty">Carregando…</li>'; return; }
+  if (rankState === "off") {
+    $("rankNote").textContent = "Sem conexão com o ranking agora. Sua pontuação fica salva neste aparelho e sobe quando a conexão voltar.";
+    list.innerHTML = '<li class="rank-empty">Ranking indisponível.</li>'; return;
   }
-  $("rankNote").textContent = canWrite === false
-    ? "Você pode ver o ranking, mas seu acesso a este jogo é só de leitura, então sua pontuação não entra nele."
-    : "Top 20 de quem joga neste link. Atualiza ao vivo.";
-  if (!rankDocs.length) { list.innerHTML = '<li class="rank-empty">Ninguém no ranking ainda. Termine um nível para ser o primeiro.</li>'; return; }
-  const ids = rankDocs.map(d => d.id);
-  const draw = (profiles) => {
-    list.textContent = "";
-    rankDocs.forEach((d, i) => {
-      const v = d.data() || {};
-      const li = document.createElement("li");
-      if (d.id === myId) li.className = "me";
-      const pos = document.createElement("span"); pos.className = "pos"; pos.textContent = i + 1;
-      const who = document.createElement("span"); who.className = "who";
-      const nm = (profiles && profiles[d.id] && profiles[d.id].name) || "Jogador";
-      who.textContent = d.id === myId ? nm + " (você)" : nm;
-      const sub = document.createElement("small"); sub.textContent = "até o nível " + (v.maxLevel || 0); who.appendChild(sub);
-      const pts = document.createElement("span"); pts.className = "pts"; pts.textContent = Number(v.score || 0).toLocaleString("pt-BR");
-      li.append(pos, who, pts); list.appendChild(li);
-    });
-  };
-  draw(null);
-  if (user) user.profiles(ids).then(draw).catch(() => {});
-}
-function submitRanking() {
-  if (!db || !myId || canWrite === false) return;
-  const body = { score: totalScore(), maxLevel: maxLevel(), at: Date.now() };
-  writeChain = writeChain.then(() => db.doc("ranking/" + myId).set(body)).catch(e => {
-    if (e && e.code === "invalid_argument") { canWrite = false; renderRanking(); }
+  $("rankNote").textContent = "Top 20 de todos os jogadores. Atualiza ao vivo.";
+  if (!rankRows.length) { list.innerHTML = '<li class="rank-empty">Ninguém no ranking ainda. Termine um nível para ser o primeiro.</li>'; return; }
+  list.textContent = "";
+  rankRows.forEach((r, i) => {
+    const li = document.createElement("li");
+    if (r.id === myId) li.className = "me";
+    const pos = document.createElement("span"); pos.className = "pos"; pos.textContent = i + 1;
+    const who = document.createElement("span"); who.className = "who";
+    who.textContent = (r.name || "Jogador") + (r.id === myId ? " (você)" : "");
+    const sub = document.createElement("small"); sub.textContent = "até o nível " + (r.maxLevel || 0); who.appendChild(sub);
+    const pts = document.createElement("span"); pts.className = "pts"; pts.textContent = Number(r.score || 0).toLocaleString("pt-BR");
+    li.append(pos, who, pts); list.appendChild(li);
   });
 }
-async function initRanking() {
-  try {
-    if (!window.claude || !window.claude.use) return;
-    [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
-    if (user) {
-      myId = await user.id();
-      const w = user.can ? await user.can("data.write") : null;
-      canWrite = w === false ? false : true;
-    }
-    if (!db) { renderRanking(); return; }
-    db.collection("ranking").orderBy("score", "desc").limit(20).onSnapshot(
-      snap => { rankDocs = snap.docs; if (!$("rankScreen").hidden) renderRanking(); },
-      () => { db = null; renderRanking(); }
-    );
-    // Sobe a pontuação local caso o jogador já tenha jogado antes do ranking existir
-    if (myId && totalScore() > 0) {
-      const mine = await db.doc("ranking/" + myId).get();
-      const v = mine.exists ? mine.data() : null;
-      if (!v || (v.score || 0) < totalScore()) submitRanking();
-    }
-  } catch (e) { renderRanking(); }
+function submitRanking() {
+  if (!rk || totalScore() <= 0) return;
+  const body = {
+    name: getName() || "Jogador",
+    score: Math.min(100000, Math.round(totalScore())),
+    maxLevel: Math.min(500, maxLevel()),
+  };
+  writeChain = writeChain.then(() => rk.submit(body)).catch(() => {});
 }
+function onRankingReady() {
+  rk = window.hxRanking; myId = rk.uid; rankState = "on";
+  rk.watch(rows => { rankRows = rows; if (!$("rankScreen").hidden) renderRanking(); },
+           () => { rankState = "off"; if (!$("rankScreen").hidden) renderRanking(); });
+  rk.getMine().then(v => {
+    if (!v || (v.score || 0) < totalScore() || (getName() && v.name !== getName())) submitRanking();
+  }).catch(() => {});
+}
+if (window.hxRanking) onRankingReady(); else window.addEventListener("hx-ready", onRankingReady, { once: true });
+window.addEventListener("hx-error", () => { rankState = "off"; if (!$("rankScreen").hidden) renderRanking(); });
+setTimeout(() => { if (rankState === "loading") { rankState = "off"; if (!$("rankScreen").hidden) renderRanking(); } }, 15000);
 $("btnRank").onclick = () => { renderRanking(); $("rankScreen").hidden = false; $("btnRankClose").focus(); };
 $("btnRankClose").onclick = () => { $("rankScreen").hidden = true; };
-initRanking();
+$("btnSaveName").onclick = () => { $("rankName").value = setName($("rankName").value); submitRanking(); renderRanking(); };
 
 // ================= Apresentação (só na primeira vez) =================
 function hexSvg(d, rot, extra = "") {
@@ -731,7 +734,10 @@ const ILL = {
 };
 document.querySelectorAll("[data-ill]").forEach(el => { el.innerHTML = ILL[el.dataset.ill]; });
 function openIntro() { $("intro").hidden = false; $("btnPlay").focus(); }
+$("nick").value = getName();
 $("btnPlay").onclick = () => {
+  const n = $("nick").value.trim();
+  if (n && n !== getName()) { setName(n); submitRanking(); }
   $("intro").hidden = true;
   try { localStorage.setItem("hexa_intro_seen", "1"); } catch (e) {}
 };
@@ -744,6 +750,43 @@ startLevel(level);
 requestAnimationFrame(frame);
 </script>
 
+
+<script type="module">
+// Ranking online: Firebase (login anônimo + Firestore)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, limit, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDWEbFgsIrB-oe6tWZW24Z1HQLWadr4zrk",
+  authDomain: "hexaboard-ca937.firebaseapp.com",
+  projectId: "hexaboard-ca937",
+  storageBucket: "hexaboard-ca937.firebasestorage.app",
+  messagingSenderId: "431896965472",
+  appId: "1:431896965472:web:b5caf070e287817c9bae05"
+};
+
+try {
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const fs = getFirestore(app);
+  let announced = false;
+  onAuthStateChanged(auth, u => {
+    if (!u || announced) return;
+    announced = true;
+    window.hxRanking = {
+      uid: u.uid,
+      submit: (data) => setDoc(doc(fs, "ranking", u.uid), { ...data, at: serverTimestamp() }),
+      getMine: () => getDoc(doc(fs, "ranking", u.uid)).then(d => d.exists() ? d.data() : null),
+      watch: (cb, err) => onSnapshot(
+        query(collection(fs, "ranking"), orderBy("score", "desc"), limit(20)),
+        snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))), err),
+    };
+    window.dispatchEvent(new Event("hx-ready"));
+  });
+  signInAnonymously(auth).catch(() => window.dispatchEvent(new Event("hx-error")));
+} catch (e) { window.dispatchEvent(new Event("hx-error")); }
+</script>
 <script>
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
