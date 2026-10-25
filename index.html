@@ -29,6 +29,8 @@
   --warn-bg: #fff1f1;
   --daily-bg: #fff6d6;
   --link: #2563eb;
+  --wall: #7b8494;
+  --wall-edge: #545b69;
   --display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
   --body: "Nunito", system-ui, -apple-system, sans-serif;
   color-scheme: light;
@@ -39,13 +41,13 @@
   :root:not([data-theme="light"]) {
     --bg: #161b26; --panel: #222a3a; --fg: #e8edf6; --muted: #98a3b8;
     --cell: #2e3749; --cell-edge: #252d3d; --warn-bg: #3a2229; --daily-bg: #3a3320;
-    --link: #7aa7ff; --gold: #f5c518; color-scheme: dark;
+    --link: #7aa7ff; --gold: #f5c518; --wall: #4f586b; --wall-edge: #333a48; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #161b26; --panel: #222a3a; --fg: #e8edf6; --muted: #98a3b8;
   --cell: #2e3749; --cell-edge: #252d3d; --warn-bg: #3a2229; --daily-bg: #3a3320;
-  --link: #7aa7ff; --gold: #f5c518; color-scheme: dark;
+  --link: #7aa7ff; --gold: #f5c518; --wall: #4f586b; --wall-edge: #333a48; color-scheme: dark;
 }
 html, body { height: 100%; }
 body {
@@ -239,7 +241,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
   <div class="bar" id="barCampaign">
     <button id="btnUndo">Desfazer <span class="cost">−♥</span></button>
     <button id="btnHint">Dica <span class="cost">−30</span></button>
-    <button id="btnRestart">Reiniciar</button>
+    <button id="btnRestart">Reiniciar <span class="cost">−♥</span></button>
   </div>
   <div class="bar" id="barDaily" hidden>
     <button id="btnGiveUp">Encerrar tentativa</button>
@@ -278,7 +280,10 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
       <li><div class="ill" data-ill="exit"></div><div><h3>Siga a seta</h3><p>Toque numa peça e ela anda na direção da seta. Com o caminho livre até a borda, ela sai do tabuleiro.</p></div></li>
       <li><div class="ill" data-ill="slide"></div><div><h3>Bateu, ficou</h3><p>Se houver outra peça no caminho, ela desliza até encostar e fica parada ali. Às vezes deslizar é a única saída.</p></div></li>
       <li><div class="ill" data-ill="rot"></div><div><h3>Peças com anel giram</h3><p>Sempre que uma vizinha sai do lugar, a peça com anel gira 60° no sentido horário.</p></div></li>
-      <li><div class="ill" data-ill="score"></div><div><h3>Pontuação</h3><p>Cada peça que sai vale 10 pontos, multiplicados pela corrente de saídas seguidas (até ×5). Deslizar custa 10 pontos e zera a corrente. Tirar uma peça logo depois de ela girar dá +15.</p></div></li>
+      <li><div class="ill" data-ill="wall"></div><div><h3>Paredes</h3><p>Casas de pedra não saem do lugar e bloqueiam o caminho. Uma peça que bate numa parede para ali.</p></div></li>
+      <li><div class="ill" data-ill="grey"></div><div><h3>Peças sem cor</h3><p>Peças cinzas não andam sozinhas. Quando outra peça bate nelas, ganham a cor e a direção de quem bateu.</p></div></li>
+      <li><div class="ill" data-ill="score"></div><div><h3>Pontuação</h3><p>Cada peça que sai vale 10 pontos, multiplicados pela corrente de saídas seguidas (até ×5). Deslizar ou pintar uma peça sem cor custa 10 pontos e zera a corrente. Tirar uma peça logo depois de ela girar dá +15.</p></div></li>
+      <li><div class="ill" data-ill="meta"></div><div><h3>Vidas</h3><p>Desfazer, reiniciar ou sair da fase no meio custa 1 vida. Nas fases chefe, travar ou reiniciar sem nenhuma vida faz o mundo voltar para a primeira fase.</p></div></li>
       <li><div class="ill" data-ill="map"></div><div><h3>Mundos e estrelas</h3><p>São 4 mundos de 10 fases. Termine na meta de jogadas para ganhar 3 estrelas. Para abrir o próximo mundo, vença a fase chefe e junte 20 estrelas.</p></div></li>
       <li><div class="ill" data-ill="daily"></div><div><h3>Desafio diário</h3><p>Uma fase nova por dia, igual para todos. Só a primeira tentativa vale: sem desfazer e sem dica. Compartilhe o resultado com os amigos.</p></div></li>
     </ul>
@@ -304,7 +309,16 @@ const WORLDS = [
   { name: "Mestre", desc: "Deslizes e giros juntos em tabuleiros grandes.", color: "#e5484d",
     tip: "Os tabuleiros ficam grandes e misturam tudo: armadilhas, deslizes e engrenagens. Planeje algumas jogadas à frente." },
 ];
-const DAILY_CFG = { radius: 5, density: 0.4, slide: 0.35, rot: 0.2, trap: 0.15 };
+const DAILY_V1 = { radius: 5, density: 0.4, slide: 0.35, rot: 0.2, trap: 0.15 };
+const DAILY_V2 = { ...DAILY_V1, walls: 3, grey: 0.06 }; // paredes e peças sem cor a partir de 26/10/2026
+const dailyCfg = day => day >= "2026-10-26" ? DAILY_V2 : DAILY_V1;
+const MAX_LIVES = 3;
+const FEATURE_TIPS = {
+  10: { key: "walls", title: "Novidade: paredes",
+        text: "As casas de pedra são paredes. Elas não saem do lugar e bloqueiam o caminho: uma peça que bate numa parede para ali. Atenção: esta é uma fase chefe. Se você travar ou reiniciar sem nenhuma vida, o Mundo 1 volta para a fase 1." },
+  20: { key: "grey", title: "Novidade: peças sem cor",
+        text: "Peças cinzas não andam sozinhas. Faça outra peça bater nelas, deslizando ou já encostada: a peça cinza ganha a cor e a direção de quem bateu. Escolha bem quem vai bater, porque é isso que decide para onde ela vai sair. Pintar custa 10 pontos, como um deslize." },
+};
 const DAILY_WANT = { careful: 0.6, careless: 0.9 };
 const DAY0 = Date.UTC(2026, 9, 25); // desafio #1 = 25/10/2026
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
@@ -321,7 +335,25 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
 };
-let prog = store.get("hx5_prog", {}); // { fase: { score, stars, moves } }
+let prog = store.get("hx6_prog", {}); // recordes: { fase: { score, stars, moves } }
+// Caminho atual em cada mundo: quantas fases seguidas foram vencidas desde o último "o chefe venceu".
+let run = store.get("hx6_run", null) || { 1: 0, 2: 0, 3: 0, 4: 0, reset: {} };
+let livesStore = store.get("hx6_lives", {}); // vidas restantes de cada fase (ausente = cheia)
+const saveRun = () => store.set("hx6_run", run);
+const livesOf = n => livesStore[n] ?? MAX_LIVES;
+function setLives(n, v) { if (v >= MAX_LIVES) delete livesStore[n]; else livesStore[n] = Math.max(0, v); store.set("hx6_lives", livesStore); }
+function resetWorld(w) {
+  run[w] = 0; run.reset = run.reset || {}; run.reset[w] = true; saveRun();
+  setLives(w * 10, MAX_LIVES);
+}
+// Saiu de uma fase no meio (fechou o app, por exemplo): conta como reiniciar.
+function settleAbandoned() {
+  const a = store.get("hx6_attempt", null);
+  if (a == null) return;
+  store.set("hx6_attempt", null);
+  if (livesOf(a) > 0) setLives(a, livesOf(a) - 1);
+  else if (a % 10 === 0) resetWorld(a / 10);
+}
 function getName() { try { return localStorage.getItem("hexa_name") || ""; } catch (e) { return ""; } }
 function setName(n) {
   n = String(n || "").replace(/\s+/g, " ").trim().slice(0, 20);
@@ -336,7 +368,7 @@ const totalStars = () => Object.values(prog).reduce((a, r) => a + (r.stars || 0)
 const maxLevel = () => Math.max(0, ...Object.keys(prog).map(Number));
 function worldStars(w) { let s = 0; for (let i = 1; i <= 10; i++) s += (prog[(w - 1) * 10 + i] || {}).stars || 0; return s; }
 function isWorldOpen(w) { return w === 1 || (!!prog[(w - 1) * 10] && worldStars(w - 1) >= 20); }
-function isLevelOpen(n) { const w = Math.ceil(n / 10); return isWorldOpen(w) && (n % 10 === 1 || !!prog[n - 1]); }
+function isLevelOpen(n) { const w = Math.ceil(n / 10), i = (n - 1) % 10 + 1; return isWorldOpen(w) && i <= (run[w] || 0) + 1; }
 
 // ================= Datas do desafio diário (horário de Brasília) =================
 const brtShift = () => Date.now() - 3 * 3600e3;
@@ -366,13 +398,15 @@ const clampScore = v => Math.max(0, Math.min(5000, Math.round(v)));
 
 function campaignLevel(n) {
   const L = LEVELS[n - 1];
-  return { n, w: L.w, radius: L.r, par: L.par, sol: L.s, initial: L.p.map(([c, r, d, rot], id) => ({ id, c, r, d, rot: !!rot })) };
+  return { n, w: L.w, radius: L.r, par: L.par, sol: L.s, walls: (L.x || []).map(([c, r]) => ({ c, r })),
+    initial: L.p.map(([c, r, d, rot], id) => ({ id, c, r, d, rot: !!rot })) };
 }
 let dailyCache = null;
 function dailyLevel(day) {
   if (dailyCache && dailyCache.day === day) return dailyCache;
-  const g = generate(DAILY_CFG, hashStr("hexaboard-" + day), 5, DAILY_WANT, 16);
-  dailyCache = { daily: true, day, no: dailyNo(day), radius: DAILY_CFG.radius, par: g.par, sol: g.sol, initial: g.list.map(p => ({ ...p })) };
+  const cfg = dailyCfg(day);
+  const g = generate(cfg, hashStr("hexaboard-" + day), 5, DAILY_WANT, 16);
+  dailyCache = { daily: true, day, no: dailyNo(day), radius: cfg.radius, par: g.par, sol: g.sol, walls: g.walls, initial: g.list.map(p => ({ ...p })) };
   return dailyCache;
 }
 
@@ -382,14 +416,15 @@ function showScreen(name) {
 }
 function beginGame(level, snap) {
   cur = level; mode = level.daily ? "daily" : "campaign";
-  setBoard(level.radius);
+  setBoard(level.radius, level.walls || []);
   if (snap) {
     pieces = snap.pieces.map(p => ({ ...p })); moves = snap.moves; sc = { ...snap.sc };
     solIdx = snap.solIdx; trail = snap.trail.slice(); lastRotated = new Set(snap.lastRotated || []);
   } else {
     pieces = level.initial.map(p => ({ ...p })); moves = 0; sc = newScore(); solIdx = 0; trail = []; lastRotated = new Set();
   }
-  lives = 3; history = []; anims = []; hintId = null; busy = false; stuck = false; gameOver = false;
+  lives = mode === "campaign" ? livesOf(level.n) : MAX_LIVES;
+  history = []; anims = []; hintId = null; busy = false; stuck = false; gameOver = false;
   shownAngle.clear();
   if (mode === "daily") {
     $("gTitle").textContent = "Desafio #" + level.no;
@@ -409,11 +444,16 @@ function beginGame(level, snap) {
   if (snap) setTimeout(checkStuck, 60);
 }
 function startCampaign(n) {
+  settleAbandoned();
+  if (!isLevelOpen(n)) { goMap(); return; }
   beginGame(campaignLevel(n));
-  const w = Math.ceil(n / 10), W = WORLDS[w - 1], seen = store.get("hx5_tips", {});
-  if (W.tip && n % 10 === 1 && !seen[w]) {
-    seen[w] = 1; store.set("hx5_tips", seen);
-    showCard({ title: "Novidade: " + W.name, text: W.tip, buttons: [{ label: "Entendi", primary: true, fn: hideCard }] });
+  const w = Math.ceil(n / 10), W = WORLDS[w - 1], seen = store.get("hx6_tips", {});
+  let tip = null;
+  if (FEATURE_TIPS[n] && !seen[FEATURE_TIPS[n].key]) { tip = FEATURE_TIPS[n]; seen[tip.key] = 1; }
+  else if (W.tip && n % 10 === 1 && !seen["w" + w]) { tip = { title: "Novidade: " + W.name, text: W.tip }; seen["w" + w] = 1; }
+  if (tip) {
+    store.set("hx6_tips", seen);
+    showCard({ title: tip.title, text: tip.text, buttons: [{ label: "Entendi", primary: true, fn: hideCard }] });
   }
 }
 function goMap() {
@@ -428,6 +468,7 @@ function updateHud() {
   $("hearts").textContent = "♥".repeat(lives) + "♡".repeat(3 - lives);
   $("btnUndo").disabled = !history.length || lives <= 0 || gameOver;
   $("btnHint").disabled = gameOver || !pieces.length;
+  $("btnRestart").disabled = gameOver || (moves === 0 && !history.length);
 }
 
 // ================= Cartões =================
@@ -477,10 +518,21 @@ function checkStuck() {
   stuck = dead;
   if (mode === "daily") { if (dead) finishDaily(false); return; }
   $("banner").hidden = !dead;
-  if (dead && lives <= 0) {
-    gameOver = true; updateHud();
-    showCard({ title: "Travou!", text: "Sem vidas para desfazer. Tente outra ordem.",
-      buttons: [{ label: "Mapa", fn: goMap }, { label: "Reiniciar", primary: true, fn: () => beginGame(cur) }] });
+  if (dead && lives <= 0) outOfLives("Travou sem vidas para desfazer.");
+}
+// Ficou sem vidas e precisa recomeçar. Fase comum: recomeça sem vidas. Chefe: o mundo volta para a primeira fase.
+function outOfLives(why) {
+  gameOver = true; busy = false; updateHud();
+  store.set("hx6_attempt", null);
+  $("banner").hidden = true;
+  const n = cur.n, w = cur.w, first = (w - 1) * 10 + 1;
+  if (n % 10 === 0) {
+    resetWorld(w);
+    showCard({ title: "O chefe venceu", text: `${why} O Mundo ${w} volta para a fase ${first}: vença as fases de novo para enfrentar o chefe. Seus recordes e estrelas continuam valendo.`,
+      buttons: [{ label: "Mapa", fn: goMap }, { label: `Ir para a fase ${first}`, primary: true, fn: () => startCampaign(first) }] });
+  } else {
+    showCard({ title: "Sem vidas", text: `${why} Você pode recomeçar a fase, mas sem vidas para desfazer. Vencendo a fase, as vidas voltam.`,
+      buttons: [{ label: "Mapa", fn: goMap }, { label: "Recomeçar", primary: true, fn: () => beginGame(cur) }] });
   }
 }
 
@@ -496,10 +548,11 @@ function tap(x, y) {
   hintId = null;
   const occ = occOf(pieces), m = moveOf(best, occ), from = center(best.c, best.r);
   if (m.type === "none") {
-    // encostada em outra peça: só treme, não gasta jogada
-    anims.push({ piece: best, from, to: from, t: 0, dur: 300, type: "nudge", blockKey: key(m.blocker.c, m.blocker.r) });
+    // peça sem cor, ou encostada em outra peça/parede: só treme, não gasta jogada
+    anims.push({ piece: best, from, to: from, t: 0, dur: 300, type: "nudge", blockKey: m.blocker ? key(m.blocker.c, m.blocker.r) : null });
     return;
   }
+  if (mode === "campaign" && moves === 0) store.set("hx6_attempt", cur.n);
   history.push({ pieces: pieces.map(p => ({ ...p })), moves, solIdx, sc: { ...sc }, lastRotated, trailLen: trail.length });
   solIdx = solIdx >= 0 && cur.sol[solIdx] === best.id ? solIdx + 1 : -1;
   moves++;
@@ -522,11 +575,25 @@ function tap(x, y) {
       gameOver = true; updateHud();
       setTimeout(() => mode === "daily" ? finishDaily(true) : finishLevel(), 500);
     } else setTimeout(checkStuck, 60);
+  } else if (m.type === "paint") {
+    // já encostada numa peça sem cor: pinta sem sair do lugar
+    pieces = apply(pieces, best, m);
+    trail.push("s");
+    sc.slide += 10; sc.streak = 0;
+    const g = pieces.find(p => p.id === m.paint), gc = center(g.c, g.r);
+    popup(from.x, from.y - size * 0.6, "−10", "#e5484d");
+    popup(gc.x, gc.y - size * 0.6, "pintou!", DIRS[g.d].dark);
+    anims.push({ piece: best, from, to: from, t: 0, dur: 260, type: "nudge", blockKey: key(g.c, g.r) });
+    lastRotated = new Set();
+    updateHud();
+    if (mode === "daily") saveDailySnap();
+    setTimeout(checkStuck, 120);
   } else {
     pieces = apply(pieces, best, m);
     trail.push("s");
     sc.slide += 10; sc.streak = 0;
     popup(from.x, from.y - size * 0.6, "−10", "#e5484d");
+    if (m.paint != null) { const g = pieces.find(p => p.id === m.paint), gc = center(g.c, g.r); popup(gc.x, gc.y - size * 0.6, "pintou!", DIRS[g.d].dark); }
     const moved = pieces.find(p => p.id === best.id);
     busy = true;
     lastRotated = new Set(pieces.filter(p => before.has(p.id) && before.get(p.id) !== p.d).map(p => p.id));
@@ -544,11 +611,30 @@ $("btnUndo").onclick = () => {
   if (!history.length || lives <= 0 || busy || gameOver || mode === "daily") return;
   const h = history.pop();
   pieces = h.pieces; moves = h.moves; solIdx = h.solIdx; sc = { ...h.sc, hint: sc.hint };
-  lastRotated = h.lastRotated; trail.length = h.trailLen; lives--; anims = []; hintId = null;
+  lastRotated = h.lastRotated; trail.length = h.trailLen; lives--; setLives(cur.n, lives); anims = []; hintId = null;
   stuck = false; $("banner").hidden = true;
   updateHud(); setTimeout(checkStuck, 30);
 };
-$("btnRestart").onclick = () => { if (mode === "campaign") beginGame(cur); };
+function restartCampaign() {
+  store.set("hx6_attempt", null);
+  if (lives > 0) { setLives(cur.n, lives - 1); beginGame(cur); return; }
+  if (cur.n % 10 === 0) outOfLives("Você reiniciou sem nenhuma vida.");
+  else beginGame(cur);
+}
+$("btnRestart").onclick = () => {
+  if (mode !== "campaign" || gameOver || (moves === 0 && !history.length)) return;
+  if (lives === 0 && cur.n % 10 === 0) {
+    showCard({ title: "Reiniciar o chefe?", text: `Você está sem vidas. Reiniciar agora faz o Mundo ${cur.w} voltar para a fase ${(cur.w - 1) * 10 + 1}.`,
+      buttons: [{ label: "Continuar jogando", fn: hideCard }, { label: "Reiniciar", primary: true, fn: restartCampaign }] });
+    return;
+  }
+  if (lives === 1) {
+    showCard({ title: "Última vida", text: "Reiniciar gasta sua última vida. Você continua na fase, mas sem poder desfazer jogadas.",
+      buttons: [{ label: "Continuar jogando", fn: hideCard }, { label: "Reiniciar (−1 ♥)", primary: true, fn: restartCampaign }] });
+    return;
+  }
+  restartCampaign();
+};
 $("btnHint").onclick = () => {
   if (mode === "daily" || stuck || gameOver || hintId !== null || !pieces.length) return;
   sc.hint += 30; updateHud();
@@ -558,7 +644,19 @@ $("btnHint").onclick = () => {
   const ex = legalMoves(pieces).find(x => x.m.type === "exit");
   if (ex) hintId = ex.p.id;
 };
-$("btnBack").onclick = goMap;
+$("btnBack").onclick = () => {
+  if (mode !== "campaign" || gameOver || moves === 0) { goMap(); return; }
+  const boss = cur.n % 10 === 0, first = (cur.w - 1) * 10 + 1;
+  const leave = () => {
+    store.set("hx6_attempt", null);
+    if (lives > 0) { setLives(cur.n, lives - 1); goMap(); }
+    else if (boss) { gameOver = true; outOfLives("Você saiu do chefe sem nenhuma vida."); }
+    else goMap();
+  };
+  let text = "Sair agora conta como reiniciar e custa 1 vida.";
+  if (lives === 0) text = boss ? `Você está sem vidas: sair agora faz o Mundo ${cur.w} voltar para a fase ${first}.` : "Você está sem vidas, então sair não custa nada.";
+  showCard({ title: "Sair da fase?", text, buttons: [{ label: "Continuar jogando", fn: hideCard }, { label: lives > 0 ? "Sair (−1 ♥)" : "Sair", primary: true, fn: leave }] });
+};
 $("btnGiveUp").onclick = () => {
   if (gameOver) return;
   showCard({ title: "Encerrar o desafio?", text: "Os pontos que você fez até agora ficam registrados e você não poderá jogar de novo hoje.",
@@ -579,7 +677,13 @@ function finishLevel() {
     stars: Math.max(prev ? prev.stars : 0, stars),
     moves: Math.min(prev ? prev.moves : Infinity, moves),
   };
-  store.set("hx5_prog", prog);
+  store.set("hx6_prog", prog);
+  store.set("hx6_attempt", null);
+  setLives(n, MAX_LIVES);
+  const i = (n - 1) % 10 + 1;
+  if (i > (run[w] || 0)) run[w] = i;
+  if (run[w] >= 10 && run.reset) delete run.reset[w];
+  saveRun();
   if (improved || !prev || stars > prev.stars) { submitLevel(n); submitPlayer(); }
 
   let t = breakdownRows() + row(`Vidas (${lives} × 100)`, lifeB) + row(`Estrelas (${stars} × 50)`, starB);
@@ -743,6 +847,11 @@ function renderMap() {
     left.append(h, p);
     const right = document.createElement("div"); right.className = "world-stars"; right.innerHTML = `${ws}/30 <span class="star">★</span>`;
     head.append(left, right); sec.appendChild(head);
+    if (open && run.reset && run.reset[w]) {
+      const note = document.createElement("p"); note.className = "lock-note";
+      note.textContent = `O chefe venceu na última tentativa. Vença as fases a partir da fase ${(w - 1) * 10 + (run[w] || 0) + 1} para enfrentá-lo de novo. Recordes e estrelas continuam valendo.`;
+      sec.appendChild(note);
+    }
     if (!open) {
       const note = document.createElement("p"); note.className = "lock-note";
       const bossDone = !!prog[(w - 1) * 10];
@@ -753,8 +862,8 @@ function renderMap() {
     for (let i = 1; i <= 10; i++) {
       const n = (w - 1) * 10 + i, lo = isLevelOpen(n), done = prog[n];
       const b = document.createElement("button");
-      b.className = "lvl" + (i === 10 ? " boss" : "") + (done ? " done" : lo ? " todo" : " locked");
-      if (lo && !done && !nextMarked) { b.className += " next"; nextMarked = true; }
+      b.className = "lvl" + (i === 10 ? " boss" : "") + (!lo ? " locked" : done ? " done" : " todo");
+      if (lo && i === (run[w] || 0) + 1 && !nextMarked) { b.className += " next"; nextMarked = true; }
       const hex = document.createElement("span"); hex.className = "hex";
       const num = document.createElement("b"); num.textContent = n;
       const sub = document.createElement("small");
@@ -778,16 +887,16 @@ function submitPlayer() {
   if (!rk || totalScore() <= 0) return;
   const data = { name: playerName(), total: Math.min(200000, totalScore()), stars: Math.min(120, totalStars()), maxLevel: maxLevel() };
   const sig = JSON.stringify(data);
-  if (store.get("hx5_psync", "") === sig) return;
-  queueWrite(() => rk.setPlayer(data).then(() => store.set("hx5_psync", sig)));
+  if (store.get("hx6_psync", "") === sig) return;
+  queueWrite(() => rk.setPlayer(data).then(() => store.set("hx6_psync", sig)));
 }
 function submitLevel(n) {
   const r = prog[n]; if (!rk || !r) return;
   const data = { name: playerName(), score: r.score, stars: r.stars, moves: Math.max(1, Math.min(1000, r.moves)) };
-  queueWrite(() => rk.setLevel(n, data).then(() => { const s = store.get("hx5_lsync", {}); s[n] = r.score + "|" + data.name; store.set("hx5_lsync", s); }));
+  queueWrite(() => rk.setLevel(n, data).then(() => { const s = store.get("hx6_lsync", {}); s[n] = r.score + "|" + data.name; store.set("hx6_lsync", s); }));
 }
 function flushLevels() {
-  const s = store.get("hx5_lsync", {});
+  const s = store.get("hx6_lsync", {});
   for (const n of Object.keys(prog)) if (s[n] !== prog[n].score + "|" + playerName()) submitLevel(Number(n));
 }
 async function syncDaily() {
@@ -917,7 +1026,7 @@ for (const b of document.querySelectorAll(".tabs button")) b.onclick = () => {
 $("rankLevel").onchange = e => { rankLevel = Number(e.target.value); subscribeRank(); };
 $("btnRankClose").onclick = closeRanking;
 function renameEverywhere() {
-  store.set("hx5_psync", ""); submitPlayer(); flushLevels();
+  store.set("hx6_psync", ""); submitPlayer(); flushLevels();
 }
 $("btnSaveName").onclick = () => {
   const before = getName();
@@ -953,21 +1062,45 @@ function hexPath(x, y, s) {
   }
   ctx.closePath();
 }
+// Parede: bloco de pedra mais alto que as casas, com juntas
+function drawWall(x, y, top, edge) {
+  const s = size * 0.94, depth = size * 0.22;
+  hexPath(x, y + depth * 0.5, s); ctx.fillStyle = edge; ctx.fill();
+  hexPath(x, y - depth * 0.5, s); ctx.fillStyle = top; ctx.fill();
+  ctx.save(); ctx.strokeStyle = edge; ctx.lineWidth = Math.max(1.5, size * 0.07); ctx.lineCap = "round";
+  const yy = y - depth * 0.5;
+  ctx.beginPath();
+  ctx.moveTo(x - s * 0.7, yy - s * 0.18); ctx.lineTo(x + s * 0.7, yy - s * 0.18);
+  ctx.moveTo(x - s * 0.7, yy + s * 0.22); ctx.lineTo(x + s * 0.7, yy + s * 0.22);
+  ctx.moveTo(x - s * 0.1, yy - s * 0.18); ctx.lineTo(x - s * 0.1, yy - s * 0.62);
+  ctx.moveTo(x + s * 0.25, yy - s * 0.18); ctx.lineTo(x + s * 0.25, yy + s * 0.22);
+  ctx.moveTo(x - s * 0.3, yy + s * 0.22); ctx.lineTo(x - s * 0.3, yy + s * 0.62);
+  ctx.stroke(); ctx.restore();
+}
+const GREY = { color: "#b9c1cd", dark: "#8a93a3" };
 const shownAngle = new Map(); // ângulo exibido por peça (anima o giro)
 function angleFor(p, dt) {
+  if (p.d < 0) return 0;
   const target = DIRS[p.d].angle;
   let a = shownAngle.has(p.id) ? shownAngle.get(p.id) : target;
   const diff = ((target - a) % 360 + 540) % 360 - 180;
   a = Math.abs(diff) < 0.5 ? target : a + diff * Math.min(1, dt / 90);
   shownAngle.set(p.id, a); return a;
 }
-function drawPiece(p, x, y, glow = false, ang = DIRS[p.d].angle) {
-  const D = DIRS[p.d], s = size * 0.94, depth = size * 0.16;
+function drawPiece(p, x, y, glow = false, ang = p.d >= 0 ? DIRS[p.d].angle : 0) {
+  const D = p.d >= 0 ? DIRS[p.d] : GREY, s = size * 0.94, depth = size * 0.16;
   if (glow) { ctx.save(); ctx.shadowColor = "#fff"; ctx.shadowBlur = 18; }
   hexPath(x, y + depth, s); ctx.fillStyle = D.dark; ctx.fill();
   hexPath(x, y, s); ctx.fillStyle = D.color; ctx.fill();
   if (glow) ctx.restore();
   hexPath(x, y - s * 0.08, s * 0.82); ctx.fillStyle = "rgba(255,255,255,.12)"; ctx.fill();
+  if (p.d < 0) {
+    // sem cor: só um anel tracejado no centro, sem seta
+    ctx.save(); ctx.strokeStyle = "rgba(255,255,255,.95)"; ctx.lineWidth = Math.max(1.5, size * 0.08);
+    ctx.setLineDash([size * 0.12, size * 0.1]);
+    ctx.beginPath(); ctx.arc(x, y, s * 0.36, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+    return;
+  }
   if (p.rot) {
     ctx.save(); ctx.translate(x, y);
     ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = Math.max(1.5, size * 0.07);
@@ -993,8 +1126,10 @@ function frame(now) {
   const css = getComputedStyle(document.documentElement);
   ctx.clearRect(0, 0, cv.width, cv.height);
   const cellC = css.getPropertyValue("--cell"), edgeC = css.getPropertyValue("--cell-edge");
+  const wallC = css.getPropertyValue("--wall"), wallEdge = css.getPropertyValue("--wall-edge");
   for (const cell of getCells()) {
     const p = center(cell.c, cell.r);
+    if (isWall(cell.c, cell.r)) { drawWall(p.x, p.y, wallC, wallEdge); continue; }
     hexPath(p.x, p.y + size * 0.08, size * 0.94); ctx.fillStyle = edgeC; ctx.fill();
     hexPath(p.x, p.y, size * 0.94); ctx.fillStyle = cellC; ctx.fill();
   }
@@ -1022,7 +1157,9 @@ function frame(now) {
       ctx.font = `800 ${Math.max(14, size * 0.75)}px "Baloo 2", sans-serif`; ctx.textAlign = "center";
       ctx.lineWidth = 4; ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.fillStyle = a.color;
       const yy = a.y - ease(a.t) * size * 1.2;
-      ctx.strokeText(a.text, a.x, yy); ctx.fillText(a.text, a.x, yy); ctx.restore();
+      const half = ctx.measureText(a.text).width / 2 + 4, cw = cv.clientWidth;
+      const xx = Math.min(Math.max(a.x, half), cw - half); // não deixa o texto sair da tela
+      ctx.strokeText(a.text, xx, yy); ctx.fillText(a.text, xx, yy); ctx.restore();
     }
     if (a.t >= 1 && a.type === "slide") busy = false;
     return a.t < 1;
@@ -1046,6 +1183,9 @@ const ILL = {
   slide: `<svg width="76" height="64" viewBox="-24 -32 76 64">${hexSvg(2, false)}<g transform="translate(32 18)">${hexSvg(5, false)}</g></svg>`,
   rot: `<svg width="64" height="64" viewBox="-30 -30 60 60">${hexSvg(1, true)}</svg>`,
   score: `<svg width="64" height="64" viewBox="0 0 64 64"><text x="32" y="30" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="800" font-size="22" fill="#2fb344">+40</text><text x="32" y="54" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="800" font-size="20" fill="#f59e0b">×4</text></svg>`,
+  wall: `<svg width="64" height="64" viewBox="-30 -30 60 60"><polygon points="-10,-14.3 10,-14.3 20,0 10,14.3 -10,14.3 -20,0" transform="translate(0 4) scale(1.2)" fill="#545b69"/><polygon points="-10,-14.3 10,-14.3 20,0 10,14.3 -10,14.3 -20,0" transform="translate(0 -2) scale(1.2)" fill="#7b8494"/><path d="M-14 -6 H14 M-14 6 H14 M-2 -6 V-15 M5 -6 V6 M-6 6 V14" stroke="#545b69" stroke-width="2.4" stroke-linecap="round" transform="translate(0 -2)"/></svg>`,
+  grey: `<svg width="76" height="64" viewBox="-24 -32 76 64">${hexSvg(2, false)}<g transform="translate(32 18)"><polygon points="-10,-17.3 10,-17.3 20,0 10,17.3 -10,17.3 -20,0" transform="translate(0 3.5)" fill="#8a93a3"/><polygon points="-10,-17.3 10,-17.3 20,0 10,17.3 -10,17.3 -20,0" fill="#b9c1cd"/><circle r="7" fill="none" stroke="#fff" stroke-width="2.4" stroke-dasharray="3.5 3"/></g></svg>`,
+  meta: `<svg width="64" height="64" viewBox="0 0 64 64"><text x="32" y="40" text-anchor="middle" font-size="22" fill="#e5484d">♥♥♥</text></svg>`,
   map: `<svg width="64" height="64" viewBox="0 0 64 64"><text x="32" y="28" text-anchor="middle" font-size="20" fill="#e0a800">★★★</text><text x="32" y="54" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="800" font-size="18" fill="#3b82f6">1–40</text></svg>`,
   daily: `<svg width="64" height="64" viewBox="-32 -32 64 64"><polygon points="-14,-24 14,-24 28,0 14,24 -14,24 -28,0" fill="#f5c518"/><text x="0" y="7" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="800" font-size="20" fill="#5a4300">#1</text></svg>`,
 };
@@ -1061,6 +1201,7 @@ $("btnPlay").onclick = () => {
 $("btnRules").onclick = openIntro;
 
 // ================= Início =================
+settleAbandoned();
 renderMap();
 if (!store.get("hx5_intro", 0)) openIntro();
 requestAnimationFrame(frame);

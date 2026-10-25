@@ -22,8 +22,15 @@ function buildCells(R) {
       out.push({ c: q, r: ar + (q - (q & 1)) / 2 });
   return out;
 }
-function setBoard(R) { RADIUS = R; CELLS = buildCells(R); return CELLS; }
+// Paredes: casas fixas que bloqueiam o caminho e nunca saem.
+let WALLS = new Set(), WALL_LIST = [];
+const WALL = { wall: true };
+function setWalls(list) { WALL_LIST = (list || []).map(w => ({ c: w.c, r: w.r })); WALLS = new Set(WALL_LIST.map(w => key(w.c, w.r))); }
+function getWalls() { return WALL_LIST; }
+function isWall(c, r) { return WALLS.has(key(c, r)); }
+function setBoard(R, walls) { RADIUS = R; CELLS = buildCells(R); setWalls(walls); return CELLS; }
 function getCells() { return CELLS; }
+function hexDist(c, r) { const ar = r - (c - (c & 1)) / 2; return (Math.abs(c) + Math.abs(ar) + Math.abs(c + ar)) / 2; }
 function inBoard(c, r) {
   const ar = r - (c - (c & 1)) / 2;
   return (Math.abs(c) + Math.abs(ar) + Math.abs(c + ar)) / 2 <= RADIUS;
@@ -45,18 +52,27 @@ function neighborKeys(c, r) {
 }
 
 // ================= Regras =================
-// Resultado de tocar numa peça: sai (exit), desliza até parar (slide) ou não se move (none).
+// Peça sem cor: d = -1. Não anda sozinha; quando outra peça bate nela, ganha a direção de quem bateu.
+// Resultado de tocar numa peça:
+//   exit  = sai do tabuleiro
+//   slide = desliza até encostar (paint = id da peça sem cor que ela pintou, se bateu numa)
+//   paint = já estava encostada numa peça sem cor: pinta sem se mover
+//   none  = não acontece nada
 function moveOf(p, occ) {
+  if (p.d < 0) return { type: "none", blocker: null };
   let cur = { c: p.c, r: p.r }, n = step(p.c, p.r, p.d), steps = 0;
   while (inBoard(n.c, n.r)) {
-    if (occ.has(key(n.c, n.r))) {
-      return steps === 0 ? { type: "none", blocker: n } : { type: "slide", to: cur, blocker: n };
+    const hit = occ.get(key(n.c, n.r));
+    if (hit) {
+      const paint = hit.d === -1 ? hit.id : null;
+      if (steps === 0) return paint !== null ? { type: "paint", blocker: n, paint } : { type: "none", blocker: n };
+      return { type: "slide", to: cur, blocker: n, paint };
     }
     cur = n; n = step(n.c, n.r, p.d); steps++;
   }
   return { type: "exit" };
 }
-function occOf(list) { const m = new Map(); for (const p of list) m.set(key(p.c, p.r), p); return m; }
+function occOf(list) { const m = new Map(); for (const k of WALLS) m.set(k, WALL); for (const p of list) m.set(key(p.c, p.r), p); return m; }
 function stateKey(list) { return list.map(p => p.id + ":" + p.c + "," + p.r + "," + p.d).sort().join("|"); }
 function legalMoves(list) {
   const occ = occOf(list), out = [];
@@ -64,13 +80,20 @@ function legalMoves(list) {
   out.sort((a, b) => (a.m.type === "exit" ? 0 : 1) - (b.m.type === "exit" ? 0 : 1));
   return out;
 }
-// Aplica a jogada. Peças giratórias vizinhas da casa de ORIGEM giram 60° (horário).
+// Aplica a jogada. Quando a peça sai do lugar, as giratórias vizinhas da casa de ORIGEM giram 60° (horário).
+// Se ela bateu numa peça sem cor, essa peça ganha a direção dela.
 function apply(list, p, m) {
-  const nb = neighborKeys(p.c, p.r);
+  const leaves = m.type === "exit" || m.type === "slide";
+  const nb = leaves ? neighborKeys(p.c, p.r) : null;
   const out = [];
   for (const x of list) {
-    if (x.id === p.id) { if (m.type === "slide") out.push({ ...x, c: m.to.c, r: m.to.r }); continue; }
-    if (x.rot && nb.has(key(x.c, x.r))) out.push({ ...x, d: (x.d + 1) % 6 });
+    if (x.id === p.id) {
+      if (m.type === "exit") continue;
+      out.push(m.type === "slide" ? { ...x, c: m.to.c, r: m.to.r } : x);
+      continue;
+    }
+    if (m.paint != null && x.id === m.paint) { out.push({ ...x, d: p.d }); continue; }
+    if (nb && x.rot && nb.has(key(x.c, x.r))) out.push({ ...x, d: (x.d + 1) % 6 });
     else out.push(x);
   }
   return out;
@@ -106,7 +129,14 @@ function hashStr(s) { let h = 2166136261; for (const ch of s) { h ^= ch.charCode
 
 // cfg: { radius, density, slide, rot }
 function generateOnce(cfg) {
-  const target = Math.floor(CELLS.length * cfg.density);
+  const walls = [];
+  for (let wt = 0; walls.length < (cfg.walls || 0) && wt < 300; wt++) {
+    const c = pick(CELLS);
+    if (hexDist(c.c, c.r) >= RADIUS || walls.some(w => w.c === c.c && w.r === c.r)) continue;
+    walls.push({ c: c.c, r: c.r });
+  }
+  setWalls(walls);
+  const target = Math.floor((CELLS.length - walls.length) * cfg.density);
   let list = [], rev = [], id = 0, tries = 0;
   const unrotate = (l, c, r, moverId) => {
     const nb = neighborKeys(c, r);
@@ -157,9 +187,36 @@ function generateOnce(cfg) {
     list.push(np); rev.push(np.id);
     return np;
   };
+  // Peça sem cor: X está logo atrás de G, apontando para ela. No jogo, X bate em G
+  // (pintando G com a direção de X) e então G sai. Ordem reversa: G sai, G perde a cor, X recua.
+  const tryGrey = () => {
+    const occ = occOf(list);
+    for (const X of shuffled(list.filter(x => x.d >= 0 && !x.rot))) {
+      const f = step(X.c, X.r, X.d);
+      if (!inBoard(f.c, f.r) || occ.has(key(f.c, f.r))) continue;
+      if (moveOf({ c: f.c, r: f.r, d: X.d }, occ).type !== "exit") continue;
+      const backs = [];
+      let b = stepBack(X.c, X.r, X.d);
+      while (inBoard(b.c, b.r) && !occ.has(key(b.c, b.r))) { backs.push(b); b = stepBack(b.c, b.r, X.d); }
+      return { X, f, backs };
+    }
+    return null;
+  };
   while (list.length < target && tries++ < target * 120) {
     const occ = occOf(list);
-    if (cfg.trap && rand() < cfg.trap) {
+    if (cfg.grey && rand() < cfg.grey) {
+      if (list.length + 1 > target) continue;
+      const t = tryGrey();
+      if (!t) continue;
+      const G = addPiece(t.f.c, t.f.r, t.X.d);
+      list = list.map(x => x.id === G.id ? { ...x, d: -1 } : x);
+      if (t.backs.length && rand() < 0.7) {
+        const to = pick(t.backs);
+        list = list.map(x => x.id === t.X.id ? { ...x, c: to.c, r: to.r } : x);
+        list = unrotate(list, to.c, to.r, t.X.id);
+      }
+      rev.push(t.X.id);
+    } else if (cfg.trap && rand() < cfg.trap) {
       if (list.length + 3 > target) continue;
       const t = tryTrap();
       if (!t) continue;
@@ -171,8 +228,10 @@ function generateOnce(cfg) {
       rev.push(P.id);
     } else if (list.length > 2 && rand() < cfg.slide) {
       const cands = list.filter(p => {
+        if (p.d < 0) return false;
         const f = step(p.c, p.r, p.d);
-        if (!inBoard(f.c, f.r) || !occ.has(key(f.c, f.r))) return false;
+        const front = inBoard(f.c, f.r) ? occ.get(key(f.c, f.r)) : null;
+        if (!front || front.d === -1) return false; // bater numa peça sem cor pintaria a peça
         const b = stepBack(p.c, p.r, p.d);
         return inBoard(b.c, b.r) && !occ.has(key(b.c, b.r));
       });
@@ -197,7 +256,7 @@ function generateOnce(cfg) {
       }
     }
   }
-  return { list, sol: rev.slice().reverse() };
+  return { list, sol: rev.slice().reverse(), walls };
 }
 
 // Partidas simuladas. careful=true: prefere peça livre (jogador atento).
@@ -220,7 +279,7 @@ function playouts(list, runs, careful) {
 // Gera várias candidatas e fica com a mais próxima da dificuldade desejada.
 // want: { careful, careless } = taxa de travamento desejada para cada tipo de jogador.
 function generate(cfg, seedValue, candidates, want, runs = 20) {
-  setBoard(cfg.radius); setSeed(seedValue);
+  setBoard(cfg.radius, []); setSeed(seedValue);
   let best = null, bestScore = -Infinity;
   for (let i = 0; i < candidates; i++) {
     const g = generateOnce(cfg);
@@ -232,6 +291,7 @@ function generate(cfg, seedValue, candidates, want, runs = 20) {
       best = { ...g, par: Math.min(g.sol.length, careful.best), carefulFail: careful.fail, carelessFail: careless.fail };
     }
   }
+  setWalls(best.walls);
   return best;
 }
 
@@ -243,5 +303,5 @@ function starsFor(moves, par) {
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { DIRS, setBoard, getCells, inBoard, moveOf, occOf, legalMoves, apply, solve, generate, starsFor, hashStr };
+  module.exports = { DIRS, setBoard, setWalls, getWalls, getCells, inBoard, moveOf, occOf, legalMoves, apply, solve, generate, starsFor, hashStr };
 }
