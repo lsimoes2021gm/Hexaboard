@@ -7,21 +7,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="HEXABOARD">
+<title>HEXABOARD</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<style>
-:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-html,body{height:100%}body{margin:0;font:14px system-ui,-apple-system,sans-serif}
-img{max-width:100%}[hidden]{display:none!important}
-</style>
-</head>
-<body>
-<title>HEXABOARD</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@500;700&display=swap">
 <style>
-/* Layout: one-screen app — HUD on top, canvas board fills the middle, action bar at the bottom */
+/* Layout: mapa de mundos rolável + tela de jogo de uma tela só (HUD, tabuleiro em canvas, barra de ações) */
 :root {
   --bg: #eef2f7;
   --panel: #ffffff;
@@ -32,41 +25,38 @@ img{max-width:100%}[hidden]{display:none!important}
   --accent: #2fb344;
   --accent-dark: #1f8a31;
   --heart: #e5484d;
+  --gold: #e0a800;
   --warn-bg: #fff1f1;
+  --daily-bg: #fff6d6;
+  --link: #2563eb;
   --display: "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
   --body: "Nunito", system-ui, -apple-system, sans-serif;
+  color-scheme: light;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #161b26; --panel: #222a3a; --fg: #e8edf6; --muted: #98a3b8;
-    --cell: #2e3749; --cell-edge: #252d3d; --warn-bg: #3a2229; color-scheme: dark;
+    --cell: #2e3749; --cell-edge: #252d3d; --warn-bg: #3a2229; --daily-bg: #3a3320;
+    --link: #7aa7ff; --gold: #f5c518; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #161b26; --panel: #222a3a; --fg: #e8edf6; --muted: #98a3b8;
-  --cell: #2e3749; --cell-edge: #252d3d; --warn-bg: #3a2229; color-scheme: dark;
+  --cell: #2e3749; --cell-edge: #252d3d; --warn-bg: #3a2229; --daily-bg: #3a3320;
+  --link: #7aa7ff; --gold: #f5c518; color-scheme: dark;
 }
 html, body { height: 100%; }
 body {
-  background: var(--bg); color: var(--fg); font-family: var(--body);
+  margin: 0; background: var(--bg); color: var(--fg); font: 14px var(--body);
   display: flex; flex-direction: column; overflow: hidden;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   padding-block: 10px; box-sizing: border-box;
   user-select: none; -webkit-user-select: none;
 }
-.hud { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 640px; width: 100%; margin: 0 auto; }
-.logo { font-family: var(--display); font-weight: 800; font-size: 26px; line-height: 1; letter-spacing: .5px; }
-.logo b { color: #3b82f6; } .logo i { font-style: normal; color: #f59e0b; }
-.stats { display: flex; gap: 14px; align-items: center; font-variant-numeric: tabular-nums; }
-.stat { display: flex; flex-direction: column; align-items: center; }
-.stat small { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-.stat span { font-family: var(--display); font-weight: 800; font-size: 20px; line-height: 1.1; }
-.stat em { font-style: normal; font-size: 13px; color: var(--muted); }
-.hearts { color: var(--heart); font-size: 18px; letter-spacing: 2px; }
-.stage { flex: 1; min-height: 0; position: relative; max-width: 640px; width: 100%; margin: 6px auto; }
-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: manipulation; }
-.bar { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; max-width: 640px; width: 100%; margin: 0 auto; }
+[hidden] { display: none !important; }
 button {
   font-family: var(--display); font-weight: 800; font-size: 16px; border: 0; cursor: pointer;
   padding: 8px 16px; border-radius: 14px; background: var(--panel); color: var(--fg);
@@ -74,132 +64,223 @@ button {
 }
 button:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--cell-edge); }
 button:disabled { opacity: .45; cursor: default; transform: none; }
-button:focus-visible { outline: 3px solid #3b82f6; outline-offset: 2px; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid #3b82f6; outline-offset: 2px; }
 button.primary { background: var(--accent); color: #fff; box-shadow: 0 4px 0 var(--accent-dark); }
+button.linkish { background: none; box-shadow: none; color: var(--link); padding: 4px 8px; font-size: 15px; }
+.logo { font-family: var(--display); font-weight: 800; font-size: 30px; line-height: 1; letter-spacing: .5px; }
+.logo b { color: #3b82f6; } .logo i { font-style: normal; color: #f59e0b; }
+.icon-btn { width: 38px; height: 38px; padding: 0; border-radius: 50%; font-size: 18px; }
+.screen { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* ---------- Mapa ---------- */
+#mapScreen { overflow-y: auto; }
+.map-inner { max-width: 560px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; padding-bottom: 24px; }
+.map-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 4px; }
+.map-actions { display: flex; gap: 8px; align-items: center; }
+.totals { display: flex; gap: 20px; color: var(--muted); font-size: 15px; align-items: baseline; font-variant-numeric: tabular-nums; }
+.totals b { font-family: var(--display); font-size: 24px; color: var(--fg); }
+.totals .star { color: var(--gold); }
+.daily { background: var(--daily-bg); border: 2px solid #f5c518; border-radius: 20px; padding: 14px 16px; display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: center; }
+.daily-badge { width: 64px; aspect-ratio: 1.1547; clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); background: #f5c518; color: #5a4300; display: flex; align-items: center; justify-content: center; font-family: var(--display); font-weight: 800; font-size: 20px; }
+.daily h2 { margin: 0; font-family: var(--display); font-size: 21px; line-height: 1.1; }
+.daily .date { color: var(--muted); font-size: 13px; }
+.daily p { margin: 4px 0 8px; font-size: 14px; line-height: 1.35; min-width: 0; }
+.daily .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.streak { font-family: var(--display); font-weight: 800; color: #e8590c; }
+.world { --wc: #2fb344; background: var(--panel); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.world-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.world-head h2 { font-family: var(--display); font-size: 21px; margin: 0; line-height: 1.1; text-wrap: balance; }
+.world-head h2 span { color: var(--wc); }
+.world-head p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+.world-stars { font-family: var(--display); font-weight: 800; font-size: 18px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.world-stars .star { color: var(--gold); }
+.lock-note { margin: 0; font-size: 13px; color: var(--muted); background: var(--bg); padding: 8px 12px; border-radius: 12px; }
+.grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px 8px; }
+.lvl { background: none; box-shadow: none; padding: 0; border-radius: 0; filter: drop-shadow(0 3px 0 rgba(0,0,0,.22)); color: #fff; }
+.lvl:active { transform: translateY(2px); box-shadow: none; }
+.lvl .hex { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; aspect-ratio: 1.1547; clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); background: var(--wc); }
+.lvl b { font-size: 20px; line-height: 1; }
+.lvl small { font-family: var(--body); font-weight: 700; font-size: 11px; letter-spacing: 1px; line-height: 1; margin-top: 3px; }
+.lvl.todo .hex { background: color-mix(in srgb, var(--wc) 50%, var(--panel)); color: var(--fg); }
+.lvl.boss .hex { background: linear-gradient(170deg, var(--wc), color-mix(in srgb, var(--wc) 62%, #000)); }
+.lvl.boss.todo .hex { background: linear-gradient(170deg, color-mix(in srgb, var(--wc) 60%, var(--panel)), color-mix(in srgb, var(--wc) 40%, #000)); color: #fff; }
+.lvl.locked { filter: none; cursor: default; }
+.lvl.locked .hex { background: var(--cell); color: var(--muted); }
+.lvl.next .hex { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(1.08); } }
+
+/* ---------- Jogo ---------- */
+.hud { display: flex; align-items: center; gap: 12px; max-width: 640px; width: 100%; margin: 0 auto; }
+.back { padding: 6px 12px; font-size: 15px; flex-shrink: 0; }
+.hud-title { display: flex; flex-direction: column; min-width: 0; }
+.hud-title b { font-family: var(--display); font-size: 21px; line-height: 1.1; }
+.hud-title small { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stats { display: flex; gap: 24px; justify-content: center; align-items: center; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.stat { display: flex; flex-direction: column; align-items: center; }
+.stat small { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.stat > span { font-family: var(--display); font-weight: 800; font-size: 20px; line-height: 1.1; }
+.stat em { font-style: normal; font-size: 13px; color: var(--muted); }
+.combo { font-family: var(--display); font-weight: 800; font-size: 13px; color: #f59e0b; margin-left: 2px; }
+.hearts { color: var(--heart); font-size: 18px; letter-spacing: 2px; }
+.stage { flex: 1; min-height: 0; position: relative; max-width: 640px; width: 100%; margin: 6px auto; }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: manipulation; }
+.bar { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; max-width: 640px; width: 100%; margin: 0 auto; }
 .cost { font-family: var(--body); font-size: 12px; color: var(--heart); font-weight: 700; }
-.overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
-.card { background: var(--panel); border-radius: 22px; padding: 22px 26px; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,.18); display: flex; flex-direction: column; gap: 10px; max-width: 300px; }
-.card h2 { font-family: var(--display); font-weight: 800; font-size: 30px; margin: 0; line-height: 1.1; }
-.card p { margin: 0; color: var(--muted); }
-.stars { font-size: 34px; color: #f5c518; letter-spacing: 4px; line-height: 1; }
-.card .row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 .banner {
   position: absolute; left: 50%; top: 8px; transform: translateX(-50%);
   background: var(--warn-bg); color: var(--fg); border: 2px solid var(--heart);
   border-radius: 14px; padding: 8px 14px; font-weight: 700; font-size: 14px; text-align: center;
   max-width: calc(100% - 16px); box-sizing: border-box;
 }
-.hud-right { display: flex; align-items: center; gap: 12px; }
-.icon-btn { width: 34px; height: 34px; padding: 0; border-radius: 50%; font-size: 18px; }
-.intro {
+
+/* ---------- Cartões (fim de fase, desafio, avisos) ---------- */
+.overlay {
+  position: fixed; inset: 0; z-index: 30; background: rgba(15, 20, 30, .45);
+  display: flex; overflow-y: auto; box-sizing: border-box;
+  padding: calc(env(safe-area-inset-top, 0px) + 16px) max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 16px) max(16px, env(safe-area-inset-left, 0px));
+}
+.card { margin: auto; background: var(--panel); border-radius: 22px; padding: 22px 22px 18px; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,.25); display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 340px; box-sizing: border-box; }
+.card h2 { font-family: var(--display); font-weight: 800; font-size: 28px; margin: 0; line-height: 1.1; text-wrap: balance; }
+.card p { margin: 0; color: var(--muted); line-height: 1.4; }
+.card .row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.stars { font-size: 34px; color: var(--gold); letter-spacing: 4px; line-height: 1; }
+.note { font-family: var(--display); font-weight: 800; color: var(--accent); }
+.note.warn { color: var(--muted); font-family: var(--body); font-weight: 700; font-size: 14px; }
+.breakdown { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 14px; }
+.breakdown td { padding: 3px 0; color: var(--muted); text-align: left; }
+.breakdown td + td { text-align: right; color: var(--fg); font-weight: 700; }
+.breakdown tr.total td { border-top: 2px solid var(--cell); padding-top: 6px; font-family: var(--display); font-size: 18px; color: var(--fg); }
+.share-preview { white-space: pre-wrap; text-align: left; background: var(--bg); border-radius: 12px; padding: 10px 12px; font: 13px/1.35 var(--body); margin: 0; user-select: text; -webkit-user-select: text; overflow-wrap: anywhere; }
+
+/* ---------- Telas cheias (regras, ranking) ---------- */
+.full {
   position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-top: calc(env(safe-area-inset-top, 0px) + 24px);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 20px);
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
 }
-.intro-inner { max-width: 460px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.full-inner { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 .intro .logo { font-size: 46px; text-align: center; }
-.intro .tagline { text-align: center; color: var(--muted); font-size: 16px; margin: -8px 0 0; text-wrap: balance; }
+.tagline { text-align: center; color: var(--muted); font-size: 16px; margin: -6px 0 0; text-wrap: balance; }
 .rules { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .rules li { display: grid; grid-template-columns: 76px 1fr; gap: 14px; align-items: center; background: var(--panel); border-radius: 18px; padding: 12px 14px; }
 .rules .ill { display: flex; justify-content: center; align-items: center; }
 .rules h3 { margin: 0 0 2px; font-family: var(--display); font-weight: 800; font-size: 18px; line-height: 1.15; }
 .rules p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.4; min-width: 0; }
-.combo { font-family: var(--display); font-weight: 800; font-size: 13px; color: #f59e0b; margin-left: 2px; }
-.breakdown { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 14px; }
-.breakdown td { padding: 3px 0; color: var(--muted); text-align: left; }
-.breakdown td + td { text-align: right; color: var(--fg); font-weight: 700; }
-.breakdown tr.total td { border-top: 2px solid var(--cell); padding-top: 6px; font-family: var(--display); font-size: 18px; color: var(--fg); }
-.record { font-family: var(--display); font-weight: 800; color: var(--accent); }
+.intro .go { font-size: 22px; padding: 12px 20px; align-self: center; min-width: 200px; }
+.nick { display: flex; flex-direction: column; gap: 6px; }
+.nick label { font-weight: 700; font-size: 14px; }
+.nick input, .rank-select { font: 600 17px var(--body); padding: 10px 14px; border-radius: 14px; border: 2px solid var(--cell); background: var(--panel); color: var(--fg); min-width: 0; }
+.nick input:focus { outline: none; border-color: #3b82f6; }
+.nick-row > div { display: flex; gap: 8px; }
+.nick-row input { flex: 1; }
 .rank-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .rank-head h2 { font-family: var(--display); font-weight: 800; font-size: 32px; margin: 0; }
-.rank-me { background: var(--panel); border-radius: 18px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.tabs { display: flex; background: var(--panel); border-radius: 14px; padding: 4px; gap: 4px; }
+.tabs button { flex: 1; box-shadow: none; background: transparent; padding: 8px 4px; font-size: 15px; border-radius: 10px; color: var(--muted); }
+.tabs button:active { transform: none; }
+.tabs button[aria-selected="true"] { background: var(--accent); color: #fff; }
+.rank-me { background: var(--panel); border-radius: 18px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .rank-me b { font-family: var(--display); font-size: 28px; font-variant-numeric: tabular-nums; }
 .rank-note { color: var(--muted); font-size: 13px; margin: 0; }
 .rank-list { list-style: none; margin: 0; padding: 0; background: var(--panel); border-radius: 18px; overflow: hidden; }
 .rank-list li { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--cell); font-variant-numeric: tabular-nums; }
 .rank-list li:first-child { border-top: 0; }
 .rank-list .pos { font-family: var(--display); font-weight: 800; font-size: 18px; color: var(--muted); text-align: center; }
-.rank-list li:nth-child(1) .pos { color: #e0a800; } .rank-list li:nth-child(2) .pos { color: #8a96a8; } .rank-list li:nth-child(3) .pos { color: #c27400; }
+.rank-list li:nth-child(1) .pos { color: var(--gold); } .rank-list li:nth-child(2) .pos { color: #8a96a8; } .rank-list li:nth-child(3) .pos { color: #c27400; }
 .rank-list .who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
 .rank-list .who small { display: block; font-weight: 500; color: var(--muted); font-size: 12px; }
 .rank-list .pts { font-family: var(--display); font-weight: 800; font-size: 18px; }
 .rank-list li.me { background: color-mix(in srgb, var(--accent) 14%, transparent); }
-.rank-empty { padding: 18px 14px; color: var(--muted); text-align: center; }
-@media (max-width: 480px) { .hud .logo { display: none; } .hud { justify-content: center; } }
-.nick { display: flex; flex-direction: column; gap: 6px; }
-.nick label { font-weight: 700; font-size: 14px; }
-.nick input { font: 600 17px var(--body); padding: 10px 14px; border-radius: 14px; border: 2px solid var(--cell); background: var(--panel); color: var(--fg); min-width: 0; }
-.nick input:focus { outline: none; border-color: #3b82f6; }
-.nick-row > div { display: flex; gap: 8px; }
-.nick-row input { flex: 1; }
-.intro .go { font-size: 22px; padding: 12px 20px; align-self: center; min-width: 200px; }
-@media (prefers-reduced-motion: reduce) { button:active { transform: none; } }
+.rank-list li.rank-empty { display: block; padding: 18px 14px; color: var(--muted); text-align: center; }
+@media (prefers-reduced-motion: reduce) {
+  button:active, .lvl:active { transform: none; }
+  .lvl.next .hex { animation: none; }
+}
 </style>
+</head>
+<body>
 
-<div class="hud">
-  <div class="logo"><b>HEXA</b><i>BOARD</i></div>
-  <div class="hud-right">
+<!-- ================= Mapa ================= -->
+<section class="screen" id="mapScreen">
+  <div class="map-inner">
+    <header class="map-head">
+      <div class="logo"><b>HEXA</b><i>BOARD</i></div>
+      <div class="map-actions">
+        <button id="btnRankMap">Ranking</button>
+        <button class="icon-btn" id="btnRules" aria-label="Ver regras">?</button>
+      </div>
+    </header>
+    <div class="totals">
+      <span><b id="mapStars">0</b> <span class="star">★</span></span>
+      <span><b id="mapScore">0</b> pontos</span>
+    </div>
+    <div class="daily" id="dailyCard"></div>
+    <div id="worlds"></div>
+  </div>
+</section>
+
+<!-- ================= Jogo ================= -->
+<section class="screen" id="gameScreen" hidden>
+  <div class="hud">
+    <button class="back" id="btnBack">‹ Mapa</button>
+    <div class="hud-title"><b id="gTitle">Fase 1</b><small id="gSub"></small></div>
+  </div>
   <div class="stats">
-    <div class="stat"><small>Nível</small><span id="lvl">1</span></div>
     <div class="stat"><small>Pontos</small><span><span id="score">0</span><span class="combo" id="combo"></span></span></div>
     <div class="stat"><small>Jogadas</small><span><span id="moves">0</span><em> / <span id="par">0</span></em></span></div>
-    <div class="stat"><small>Vidas</small><span class="hearts" id="hearts">♥♥♥</span></div>
+    <div class="stat" id="statLives"><small>Vidas</small><span class="hearts" id="hearts">♥♥♥</span></div>
   </div>
-  <button class="icon-btn" id="btnRules" aria-label="Ver regras">?</button>
+  <div class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="banner" id="banner" hidden>Sem saída! Desfaça uma jogada ou reinicie.</div>
   </div>
-</div>
-
-<div class="stage" id="stage">
-  <canvas id="cv"></canvas>
-  <div class="banner" id="banner" hidden>Sem saída! Desfaça uma jogada ou reinicie.</div>
-  <div class="overlay" id="overlay" hidden>
-    <div class="card">
-      <h2 id="ovTitle">Nível concluído!</h2>
-      <div class="stars" id="ovStars" hidden></div>
-      <p id="ovText"></p>
-      <table class="breakdown" id="ovTable" hidden></table>
-      <div class="record" id="ovRecord" hidden></div>
-      <div class="row">
-        <button id="ovBtn2" hidden>Repetir</button>
-        <button class="primary" id="ovBtn">Próximo</button>
-      </div>
-    </div>
+  <div class="bar" id="barCampaign">
+    <button id="btnUndo">Desfazer <span class="cost">−♥</span></button>
+    <button id="btnHint">Dica <span class="cost">−30</span></button>
+    <button id="btnRestart">Reiniciar</button>
   </div>
-</div>
+  <div class="bar" id="barDaily" hidden>
+    <button id="btnGiveUp">Encerrar tentativa</button>
+  </div>
+</section>
 
-<div class="bar">
-  <button id="btnUndo">Desfazer <span class="cost">−♥</span></button>
-  <button id="btnHint">Dica <span class="cost">−30</span></button>
-  <button id="btnRestart">Reiniciar</button>
-  <button id="btnRank">Ranking</button>
-  <button class="primary" id="btnNew">Pular nível</button>
-</div>
+<div class="overlay" id="overlay" hidden><div class="card" id="card" role="dialog" aria-modal="true"></div></div>
 
-<div class="intro" id="rankScreen" hidden>
-  <div class="intro-inner">
+<!-- ================= Ranking ================= -->
+<div class="full" id="rankScreen" hidden>
+  <div class="full-inner">
     <div class="rank-head"><h2>Ranking</h2><button id="btnRankClose">Voltar</button></div>
-    <div class="rank-me"><span>Sua pontuação total<br><span class="rank-note" id="rankMeSub"></span></span><b id="rankMe">0</b></div>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tabGeral" data-tab="geral">Geral</button>
+      <button role="tab" id="tabHoje" data-tab="hoje">Desafio de hoje</button>
+      <button role="tab" id="tabFase" data-tab="fase">Por fase</button>
+    </div>
+    <select class="rank-select" id="rankLevel" aria-label="Escolha a fase" hidden></select>
+    <div class="rank-me"><span id="rankMeLabel">Sua pontuação total<br><span class="rank-note" id="rankMeSub"></span></span><b id="rankMe">0</b></div>
+    <p class="rank-note" id="rankNote">Conectando ao ranking…</p>
+    <ol class="rank-list" id="rankList"><li class="rank-empty">Carregando…</li></ol>
     <div class="nick nick-row">
       <label for="rankName">Seu apelido</label>
       <div><input id="rankName" maxlength="20" placeholder="Jogador"><button id="btnSaveName">Salvar</button></div>
     </div>
-    <p class="rank-note" id="rankNote">Carregando ranking…</p>
-    <ol class="rank-list" id="rankList"><li class="rank-empty">Carregando…</li></ol>
-    <p class="rank-note">A pontuação total soma o seu melhor resultado em cada nível. Repita um nível para melhorar a nota dele.</p>
+    <p class="rank-note" id="rankHelp"></p>
   </div>
 </div>
-<div class="intro" id="intro" hidden>
-  <div class="intro-inner">
+
+<!-- ================= Regras / apresentação ================= -->
+<div class="full intro" id="intro" hidden>
+  <div class="full-inner">
     <div class="logo"><b>HEXA</b><i>BOARD</i></div>
     <p class="tagline">Tire todas as peças do tabuleiro. Cada toque conta: escolha bem a ordem.</p>
     <ul class="rules">
       <li><div class="ill" data-ill="exit"></div><div><h3>Siga a seta</h3><p>Toque numa peça e ela anda na direção da seta. Com o caminho livre até a borda, ela sai do tabuleiro.</p></div></li>
-      <li><div class="ill" data-ill="slide"></div><div><h3>Bateu, ficou</h3><p>Se houver outra peça no caminho, ela desliza até encostar e fica parada ali. Isso pode travar o tabuleiro.</p></div></li>
+      <li><div class="ill" data-ill="slide"></div><div><h3>Bateu, ficou</h3><p>Se houver outra peça no caminho, ela desliza até encostar e fica parada ali. Às vezes deslizar é a única saída.</p></div></li>
       <li><div class="ill" data-ill="rot"></div><div><h3>Peças com anel giram</h3><p>Sempre que uma vizinha sai do lugar, a peça com anel gira 60° no sentido horário.</p></div></li>
       <li><div class="ill" data-ill="score"></div><div><h3>Pontuação</h3><p>Cada peça que sai vale 10 pontos, multiplicados pela corrente de saídas seguidas (até ×5). Deslizar custa 10 pontos e zera a corrente. Tirar uma peça logo depois de ela girar dá +15.</p></div></li>
-      <li><div class="ill" data-ill="meta"></div><div><h3>Vidas e estrelas</h3><p>Travou? Desfazer custa uma vida. A Dica aponta uma boa jogada e custa 30 pontos. No fim do nível, cada vida vale +100 e cada estrela +50.</p></div></li>
+      <li><div class="ill" data-ill="map"></div><div><h3>Mundos e estrelas</h3><p>São 4 mundos de 10 fases. Termine na meta de jogadas para ganhar 3 estrelas. Para abrir o próximo mundo, vença a fase chefe e junte 20 estrelas.</p></div></li>
+      <li><div class="ill" data-ill="daily"></div><div><h3>Desafio diário</h3><p>Uma fase nova por dia, igual para todos. Só a primeira tentativa vale: sem desfazer e sem dica. Compartilhe o resultado com os amigos.</p></div></li>
     </ul>
     <div class="nick">
       <label for="nick">Seu apelido no ranking</label>
@@ -209,259 +290,203 @@ button.primary { background: var(--accent); color: #fff; box-shadow: 0 4px 0 var
   </div>
 </div>
 
+<script src="js/logica.js"></script>
+<script src="js/fases.js"></script>
 <script>
-// ================= Configuração =================
-// Hexágonos "flat-top", colunas ímpares deslocadas para baixo (como no app).
-const DIRS = [
-  { dq: 0,  dr: -1, angle: -90,  color: "#f5c518", dark: "#c99a00" }, // cima
-  { dq: 1,  dr: -1, angle: -30,  color: "#2fb344", dark: "#1f8a31" }, // cima-direita
-  { dq: 1,  dr: 0,  angle: 30,   color: "#f59e0b", dark: "#c27400" }, // baixo-direita
-  { dq: 0,  dr: 1,  angle: 90,   color: "#e5484d", dark: "#b22a2f" }, // baixo
-  { dq: -1, dr: 1,  angle: 150,  color: "#3b82f6", dark: "#2360c4" }, // baixo-esquerda
-  { dq: -1, dr: 0,  angle: -150, color: "#8b3ddb", dark: "#6424a8" }, // cima-esquerda
+// ================= Dados fixos =================
+const SITE = "https://lsimoes2021gm.github.io/Hexaboard/";
+const WORLDS = [
+  { name: "Primeiros passos", desc: "Siga as setas e limpe o tabuleiro.", color: "#2fb344" },
+  { name: "Deslize", desc: "Algumas peças só saem se outra deslizar antes.", color: "#3b82f6",
+    tip: "A partir de agora, algumas peças se bloqueiam em círculo e nenhuma sai direto. Para destravar, deslize uma delas para fora do caminho. Cada deslize custa 10 pontos, então escolha bem qual mover." },
+  { name: "Engrenagens", desc: "Peças com anel giram quando uma vizinha sai.", color: "#8b3ddb",
+    tip: "Peças com anel giram 60° no sentido horário sempre que uma vizinha sai do lugar. Uma peça livre pode ficar presa depois de girar, e uma presa pode se soltar. Observe as vizinhas antes de tocar." },
+  { name: "Mestre", desc: "Deslizes e giros juntos em tabuleiros grandes.", color: "#e5484d",
+    tip: "Os tabuleiros ficam grandes e misturam tudo: armadilhas, deslizes e engrenagens. Planeje algumas jogadas à frente." },
 ];
-const SOLVER_CAP = 6000; // limite de nós da busca (mantém a UI fluida)
+const DAILY_CFG = { radius: 5, density: 0.4, slide: 0.35, rot: 0.2, trap: 0.15 };
+const DAILY_WANT = { careful: 0.6, careless: 0.9 };
+const DAY0 = Date.UTC(2026, 9, 25); // desafio #1 = 25/10/2026
+const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
 const cv = document.getElementById("cv");
 const ctx = cv.getContext("2d");
 const stage = document.getElementById("stage");
 const $ = id => document.getElementById(id);
+const fmt = n => Number(n || 0).toLocaleString("pt-BR");
+const starsText = n => "★".repeat(n) + "☆".repeat(3 - n);
 
-let level = 1;
-try { level = parseInt(localStorage.getItem("hexa_level_v4")) || 1; } catch (e) {}
+// ================= Armazenamento local =================
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+};
+let prog = store.get("hx5_prog", {}); // { fase: { score, stars, moves } }
+function getName() { try { return localStorage.getItem("hexa_name") || ""; } catch (e) { return ""; } }
+function setName(n) {
+  n = String(n || "").replace(/\s+/g, " ").trim().slice(0, 20);
+  try { localStorage.setItem("hexa_name", n); } catch (e) {}
+  return n;
+}
+const playerName = () => getName() || "Jogador";
 
-let RADIUS, CELLS, pieces, initial, par, solution, lives, moves, history, solIdx;
-// Pontuação do nível atual
+// ================= Progresso e desbloqueio =================
+const totalScore = () => Object.values(prog).reduce((a, r) => a + (r.score || 0), 0);
+const totalStars = () => Object.values(prog).reduce((a, r) => a + (r.stars || 0), 0);
+const maxLevel = () => Math.max(0, ...Object.keys(prog).map(Number));
+function worldStars(w) { let s = 0; for (let i = 1; i <= 10; i++) s += (prog[(w - 1) * 10 + i] || {}).stars || 0; return s; }
+function isWorldOpen(w) { return w === 1 || (!!prog[(w - 1) * 10] && worldStars(w - 1) >= 20); }
+function isLevelOpen(n) { const w = Math.ceil(n / 10); return isWorldOpen(w) && (n % 10 === 1 || !!prog[n - 1]); }
+
+// ================= Datas do desafio diário (horário de Brasília) =================
+const brtShift = () => Date.now() - 3 * 3600e3;
+const dayKey = (offset = 0) => new Date(brtShift() + offset * 86400e3).toISOString().slice(0, 10);
+const dailyNo = k => Math.round((Date.parse(k + "T00:00:00Z") - DAY0) / 86400e3) + 1;
+const prettyDate = k => { const [, m, d] = k.split("-").map(Number); return `${d} de ${MESES[m - 1]}`; };
+const streakLabel = st => st === 1 ? "1 dia seguido" : `${st} dias seguidos`;
+function currentStreak() {
+  const s = store.get("hx5_streak", { last: null, n: 0 });
+  return (s.last === dayKey() || s.last === dayKey(-1)) ? s.n : 0;
+}
+function bumpStreak(day) {
+  const s = store.get("hx5_streak", { last: null, n: 0 });
+  if (s.last === day) return;
+  s.n = s.last === dayKey(-1) ? s.n + 1 : 1; s.last = day;
+  store.set("hx5_streak", s);
+}
+function todayDaily() { const d = store.get("hx5_daily", null); return d && d.date === dayKey() ? d : null; }
+
+// ================= Estado do jogo =================
+let mode = "campaign", cur = null, pieces = [], lives, moves, history, solIdx, trail, gameOver = false;
+let size = 30, ox = 0, oy = 0, anims = [], hintId = null, busy = false, stuck = false;
 let sc, lastRotated = new Set();
 const newScore = () => ({ exit: 0, rot: 0, slide: 0, hint: 0, streak: 0 });
 const levelPoints = () => sc.exit + sc.rot - sc.slide - sc.hint;
-// Melhor pontuação por nível (a soma é o total do ranking)
-let bests = {};
-try { bests = JSON.parse(localStorage.getItem("hexa_bests_v4") || "{}") || {}; } catch (e) {}
-const totalScore = () => Object.values(bests).reduce((a, b) => a + b, 0);
-const maxLevel = () => Math.max(0, ...Object.keys(bests).map(Number));
-let size, ox, oy, anims = [], hintId = null, busy = false, stuck = false, seed = 0;
+const clampScore = v => Math.max(0, Math.min(5000, Math.round(v)));
 
-// ================= Coordenadas =================
-// Tabuleiro hexagonal de raio RADIUS, centrado na casa (0,0).
-const key = (c, r) => (c + 32) * 128 + (r + 32);
-function inBoard(c, r) {
-  const ar = r - (c - (c & 1)) / 2;
-  return (Math.abs(c) + Math.abs(ar) + Math.abs(c + ar)) / 2 <= RADIUS;
+function campaignLevel(n) {
+  const L = LEVELS[n - 1];
+  return { n, w: L.w, radius: L.r, par: L.par, sol: L.s, initial: L.p.map(([c, r, d, rot], id) => ({ id, c, r, d, rot: !!rot })) };
 }
-function buildCells(R) {
-  const out = [];
-  for (let q = -R; q <= R; q++)
-    for (let ar = Math.max(-R, -q - R); ar <= Math.min(R, -q + R); ar++)
-      out.push({ c: q, r: ar + (q - (q & 1)) / 2 });
-  return out;
-}
-function step(c, r, d) {
-  const ar = r - (c - (c & 1)) / 2;            // offset -> axial
-  const q = c + DIRS[d].dq, rr = ar + DIRS[d].dr;
-  return { c: q, r: rr + (q - (q & 1)) / 2 };  // axial -> offset
-}
-function stepBack(c, r, d) {
-  const ar = r - (c - (c & 1)) / 2;
-  const q = c - DIRS[d].dq, rr = ar - DIRS[d].dr;
-  return { c: q, r: rr + (q - (q & 1)) / 2 };
-}
-function center(c, r) {
-  return { x: ox + size * 1.5 * c, y: oy + Math.sqrt(3) * size * (r + 0.5 * (c & 1)) };
+let dailyCache = null;
+function dailyLevel(day) {
+  if (dailyCache && dailyCache.day === day) return dailyCache;
+  const g = generate(DAILY_CFG, hashStr("hexaboard-" + day), 5, DAILY_WANT, 16);
+  dailyCache = { daily: true, day, no: dailyNo(day), radius: DAILY_CFG.radius, par: g.par, sol: g.sol, initial: g.list.map(p => ({ ...p })) };
+  return dailyCache;
 }
 
-// ================= Regras =================
-// Resultado de tocar numa peça: sai (exit), desliza até parar (slide) ou não se move (none).
-function moveOf(p, occ) {
-  let cur = { c: p.c, r: p.r }, n = step(p.c, p.r, p.d), steps = 0;
-  while (inBoard(n.c, n.r)) {
-    if (occ.has(key(n.c, n.r))) {
-      return steps === 0 ? { type: "none", blocker: n } : { type: "slide", to: cur, blocker: n };
-    }
-    cur = n; n = step(n.c, n.r, p.d); steps++;
+function showScreen(name) {
+  $("mapScreen").hidden = name !== "map";
+  $("gameScreen").hidden = name !== "game";
+}
+function beginGame(level, snap) {
+  cur = level; mode = level.daily ? "daily" : "campaign";
+  setBoard(level.radius);
+  if (snap) {
+    pieces = snap.pieces.map(p => ({ ...p })); moves = snap.moves; sc = { ...snap.sc };
+    solIdx = snap.solIdx; trail = snap.trail.slice(); lastRotated = new Set(snap.lastRotated || []);
+  } else {
+    pieces = level.initial.map(p => ({ ...p })); moves = 0; sc = newScore(); solIdx = 0; trail = []; lastRotated = new Set();
   }
-  return { type: "exit" };
-}
-function occOf(list) { const m = new Map(); for (const p of list) m.set(key(p.c, p.r), p); return m; }
-function stateKey(list) { return list.map(p => p.id + ":" + p.c + "," + p.r + "," + p.d).sort().join("|"); }
-// Células vizinhas (as 6 direções)
-function neighborKeys(c, r) {
-  const out = new Set();
-  for (let d = 0; d < 6; d++) { const n = step(c, r, d); out.add(key(n.c, n.r)); }
-  return out;
-}
-function legalMoves(list) {
-  const occ = occOf(list), out = [];
-  for (const p of list) { const m = moveOf(p, occ); if (m.type !== "none") out.push({ p, m }); }
-  out.sort((a, b) => (a.m.type === "exit" ? 0 : 1) - (b.m.type === "exit" ? 0 : 1));
-  return out;
-}
-// Aplica a jogada. Peças giratórias vizinhas da casa de ORIGEM giram 60° (horário).
-function apply(list, p, m) {
-  const nb = neighborKeys(p.c, p.r);
-  const out = [];
-  for (const x of list) {
-    if (x.id === p.id) { if (m.type === "slide") out.push({ ...x, c: m.to.c, r: m.to.r }); continue; }
-    if (x.rot && nb.has(key(x.c, x.r))) out.push({ ...x, d: (x.d + 1) % 6 });
-    else out.push(x);
+  lives = 3; history = []; anims = []; hintId = null; busy = false; stuck = false; gameOver = false;
+  shownAngle.clear();
+  if (mode === "daily") {
+    $("gTitle").textContent = "Desafio #" + level.no;
+    $("gSub").textContent = prettyDate(level.day) + " · só a primeira tentativa vale";
+  } else {
+    $("gTitle").textContent = "Fase " + level.n;
+    $("gSub").textContent = `Mundo ${level.w} · ${WORLDS[level.w - 1].name}` + (level.n % 10 === 0 ? " · Chefe" : "");
   }
-  return out;
-}
-
-// ================= Solver (busca em profundidade com memória) =================
-// Retorna { ok: true/false/null, first } — null = não decidiu dentro do limite.
-function solve(list, cap = SOLVER_CAP) {
-  const dead = new Set(); let nodes = 0;
-  function dfs(s) {
-    if (s.length === 0) return [];
-    const k = stateKey(s);
-    if (dead.has(k)) return null;
-    if (++nodes > cap) throw "cap";
-    for (const { p, m } of legalMoves(s)) {
-      const r = dfs(apply(s, p, m));
-      if (r) return [{ id: p.id }, ...r];
-    }
-    dead.add(k); return null;
-  }
-  try { const path = dfs(list); return { ok: !!path, path }; }
-  catch (e) { return { ok: null }; }
-}
-
-// ================= Gerador (jogo reverso) =================
-// Começa vazio e desfaz jogadas: "des-sair" (peça entra por um caminho livre)
-// ou "des-deslizar" (peça recua ao longo da seta, se há uma peça logo à frente dela).
-// Assim todo nível tem solução, e a solução exige deslizes na ordem certa.
-function rand() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
-function pick(a) { return a[Math.floor(rand() * a.length)]; }
-
-function generateOnce(lv) {
-  const target = Math.floor(CELLS.length * Math.min(0.45, 0.28 + lv * 0.02));
-  const slideRate = Math.min(0.75, 0.35 + lv * 0.04);
-  const rotRate = lv < 3 ? 0 : Math.min(0.3, 0.06 + (lv - 3) * 0.03);
-  let list = [], rev = [], id = 0, tries = 0;
-  // Desfaz o giro: antes da jogada, as giratórias vizinhas da origem estavam 60° atrás.
-  const unrotate = (l, c, r, moverId) => {
-    const nb = neighborKeys(c, r);
-    return l.map(x => x.id !== moverId && x.rot && nb.has(key(x.c, x.r)) ? { ...x, d: (x.d + 5) % 6 } : x);
-  };
-  while (list.length < target && tries++ < target * 120) {
-    const occ = occOf(list);
-    if (list.length > 2 && rand() < slideRate) {
-      // des-deslizar: peça com outra logo à frente e espaço livre atrás
-      const cands = list.filter(p => {
-        const f = step(p.c, p.r, p.d);
-        if (!inBoard(f.c, f.r) || !occ.has(key(f.c, f.r))) return false;
-        const b = stepBack(p.c, p.r, p.d);
-        return inBoard(b.c, b.r) && !occ.has(key(b.c, b.r));
-      });
-      if (!cands.length) continue;
-      const p = pick(cands), back = [];
-      let b = stepBack(p.c, p.r, p.d);
-      while (inBoard(b.c, b.r) && !occ.has(key(b.c, b.r))) { back.push(b); b = stepBack(b.c, b.r, p.d); }
-      const to = pick(back);
-      list = list.map(x => x.id === p.id ? { ...x, c: to.c, r: to.r } : x);
-      list = unrotate(list, to.c, to.r, p.id);
-      rev.push(p.id);
-    } else {
-      // des-sair: peça nova entra por um caminho livre
-      const { c, r } = pick(CELLS);
-      if (occ.has(key(c, r))) continue;
-      const dirs = [0,1,2,3,4,5].sort(() => rand() - 0.5);
-      for (const d of dirs) {
-        if (moveOf({ c, r, d }, occ).type === "exit") {
-          const np = { id: id++, c, r, d, rot: rand() < rotRate };
-          list = unrotate(list, c, r, np.id);
-          list.push(np); rev.push(np.id); break;
-        }
-      }
-    }
-  }
-  return { list, sol: rev.slice().reverse() };
-}
-
-// Partidas simuladas. careful=true: sempre prefere peça livre (jogador atento).
-// careful=false: toca em qualquer peça que se mova (jogador descuidado).
-function playouts(list, runs, careful) {
-  let fails = 0, best = Infinity;
-  for (let i = 0; i < runs; i++) {
-    let s = list, n = 0;
-    while (s.length) {
-      const lm = legalMoves(s);
-      if (!lm.length) { fails++; n = Infinity; break; }
-      const exits = careful ? lm.filter(x => x.m.type === "exit") : [];
-      const { p, m } = pick(exits.length ? exits : lm);
-      s = apply(s, p, m); n++;
-    }
-    best = Math.min(best, n);
-  }
-  return { fail: fails / runs, best };
-}
-
-function generate(lv) {
-  seed = lv * 7919 + 13;
-  RADIUS = lv <= 2 ? 3 : lv <= 5 ? 4 : lv <= 8 ? 5 : 6;
-  CELLS = buildCells(RADIUS);
-  const candidates = lv <= 1 ? 1 : 8;
-  let best = null, bestScore = -1; // -1 = nenhum ainda
-  for (let i = 0; i < candidates; i++) {
-    const g = generateOnce(lv);
-    const careless = playouts(g.list, 24, false);
-    const careful = playouts(g.list, 12, true);
-    // Mira numa taxa de travamento do jogador atento que cresce com o nível
-    const want = Math.min(0.85, Math.max(0, (lv - 2) * 0.12));
-    const score = -Math.abs(careful.fail - want) + careless.fail * 0.1;
-    if (bestScore === -1 || score > bestScore) { bestScore = score; best = { ...g, par: Math.min(g.sol.length, careful.best) }; }
-  }
-  return best;
-}
-
-// ================= Estado do jogo =================
-function startLevel(lv, reuse) {
-  level = lv;
-  try { localStorage.setItem("hexa_level_v4", String(level)); } catch (e) {}
-  if (!reuse) { const g = generate(level); initial = g.list; par = g.par; solution = g.sol; }
-  pieces = initial.map(p => ({ ...p }));
-  lives = 3; moves = 0; history = []; solIdx = 0; sc = newScore(); lastRotated = new Set(); anims = []; hintId = null; busy = false; stuck = false;
-  $("overlay").hidden = true; $("banner").hidden = true;
+  $("statLives").hidden = mode === "daily";
+  $("barCampaign").hidden = mode === "daily";
+  $("barDaily").hidden = mode !== "daily";
+  $("banner").hidden = true;
+  hideCard();
+  showScreen("game");
   resize(); updateHud();
+  if (mode === "daily") saveDailySnap();
+  if (snap) setTimeout(checkStuck, 60);
+}
+function startCampaign(n) {
+  beginGame(campaignLevel(n));
+  const w = Math.ceil(n / 10), W = WORLDS[w - 1], seen = store.get("hx5_tips", {});
+  if (W.tip && n % 10 === 1 && !seen[w]) {
+    seen[w] = 1; store.set("hx5_tips", seen);
+    showCard({ title: "Novidade: " + W.name, text: W.tip, buttons: [{ label: "Entendi", primary: true, fn: hideCard }] });
+  }
+}
+function goMap() {
+  hideCard(); showScreen("map"); renderMap();
+  requestAnimationFrame(() => { const nb = document.querySelector(".lvl.next"); if (nb) nb.scrollIntoView({ block: "center" }); });
 }
 function updateHud() {
-  $("lvl").textContent = level;
   $("moves").textContent = moves;
+  $("par").textContent = cur.par;
   $("score").textContent = levelPoints();
   $("combo").textContent = sc.streak >= 2 ? " ×" + Math.min(5, sc.streak) : "";
-  $("par").textContent = par;
   $("hearts").textContent = "♥".repeat(lives) + "♡".repeat(3 - lives);
-  $("btnUndo").disabled = !history.length || lives <= 0;
-}
-function showOverlay(title, text, btn, fn, stars, btn2, fn2, table, record) {
-  $("ovTable").hidden = !table; if (table) $("ovTable").innerHTML = table;
-  $("ovRecord").hidden = !record; if (record) $("ovRecord").textContent = record;
-  $("ovTitle").textContent = title; $("ovText").textContent = text;
-  $("ovBtn").textContent = btn; $("ovBtn").onclick = fn;
-  $("ovStars").hidden = stars == null;
-  if (stars != null) $("ovStars").textContent = "★".repeat(stars) + "☆".repeat(3 - stars);
-  $("ovBtn2").hidden = !btn2;
-  if (btn2) { $("ovBtn2").textContent = btn2; $("ovBtn2").onclick = fn2; }
-  $("overlay").hidden = false;
+  $("btnUndo").disabled = !history.length || lives <= 0 || gameOver;
+  $("btnHint").disabled = gameOver || !pieces.length;
 }
 
+// ================= Cartões =================
+function showCard({ title, stars, text, table, note, noteWarn, share, buttons }) {
+  const card = $("card"); card.textContent = "";
+  const h = document.createElement("h2"); h.textContent = title; card.appendChild(h);
+  if (stars != null) { const s = document.createElement("div"); s.className = "stars"; s.textContent = starsText(stars); card.appendChild(s); }
+  if (text) { const p = document.createElement("p"); p.textContent = text; card.appendChild(p); }
+  if (table) { const t = document.createElement("table"); t.className = "breakdown"; t.innerHTML = table; card.appendChild(t); }
+  if (note) { const n = document.createElement("div"); n.className = "note" + (noteWarn ? " warn" : ""); n.textContent = note; card.appendChild(n); }
+  if (share) { const pre = document.createElement("pre"); pre.className = "share-preview"; pre.textContent = share; card.appendChild(pre); }
+  let first = null;
+  const rows = Array.isArray(buttons[0]) ? buttons : [buttons];
+  for (const group of rows) {
+    const row = document.createElement("div"); row.className = "row";
+    for (const b of group) {
+      const el = document.createElement("button");
+      el.textContent = b.label;
+      if (b.primary) el.className = "primary";
+      if (b.link) el.className = "linkish";
+      el.onclick = () => b.fn(el);
+      row.appendChild(el);
+      if (b.primary && !first) first = el;
+    }
+    card.appendChild(row);
+  }
+  $("overlay").hidden = false;
+  (first || card.querySelector("button")).focus();
+}
+function hideCard() { $("overlay").hidden = true; }
+const row = (label, v) => `<tr><td>${label}</td><td>${v === 0 ? "0" : (v > 0 ? "+" : "−") + fmt(Math.abs(v))}</td></tr>`;
+function breakdownRows() {
+  let t = row("Peças e correntes", sc.exit);
+  if (sc.rot) t += row("Bônus de giro", sc.rot);
+  if (sc.slide) t += row("Deslizes", -sc.slide);
+  if (sc.hint) t += row("Dicas", -sc.hint);
+  return t;
+}
+
+// ================= Travamento =================
 function checkStuck() {
-  if (!pieces.length) return;
+  if (!pieces.length || gameOver) return;
   let dead;
   if (!legalMoves(pieces).length) dead = true;
-  else if (solIdx >= 0) dead = false; // ainda no caminho da solução
+  else if (solIdx >= 0) dead = false; // ainda no caminho da solução conhecida
   else dead = solve(pieces, SOLVER_CAP * 2).ok === false;
   stuck = dead;
+  if (mode === "daily") { if (dead) finishDaily(false); return; }
   $("banner").hidden = !dead;
   if (dead && lives <= 0) {
-    showOverlay("Travou!", "Sem vidas para desfazer. Reinicie o nível e tente outra ordem.", "Reiniciar", () => startLevel(level, true));
+    gameOver = true; updateHud();
+    showCard({ title: "Travou!", text: "Sem vidas para desfazer. Tente outra ordem.",
+      buttons: [{ label: "Mapa", fn: goMap }, { label: "Reiniciar", primary: true, fn: () => beginGame(cur) }] });
   }
 }
 
 // ================= Interação =================
 function tap(x, y) {
-  if (busy || !$("overlay").hidden) return;
+  if (busy || gameOver || !$("overlay").hidden) return;
   let best = null, bd = size * 0.95;
   for (const p of pieces) {
     const c = center(p.c, p.r), d = Math.hypot(c.x - x, c.y - y);
@@ -470,35 +495,36 @@ function tap(x, y) {
   if (!best) return;
   hintId = null;
   const occ = occOf(pieces), m = moveOf(best, occ), from = center(best.c, best.r);
-
   if (m.type === "none") {
-    // Encostada em outra peça: só treme, não gasta jogada
+    // encostada em outra peça: só treme, não gasta jogada
     anims.push({ piece: best, from, to: from, t: 0, dur: 300, type: "nudge", blockKey: key(m.blocker.c, m.blocker.r) });
     return;
   }
-  history.push({ pieces: pieces.map(p => ({ ...p })), moves, solIdx, sc: { ...sc }, lastRotated });
-  solIdx = solIdx >= 0 && solution[solIdx] === best.id ? solIdx + 1 : -1;
+  history.push({ pieces: pieces.map(p => ({ ...p })), moves, solIdx, sc: { ...sc }, lastRotated, trailLen: trail.length });
+  solIdx = solIdx >= 0 && cur.sol[solIdx] === best.id ? solIdx + 1 : -1;
   moves++;
   const wasRotated = lastRotated.has(best.id);
   const before = new Map(pieces.map(p => [p.id, p.d]));
   if (m.type === "exit") {
     pieces = apply(pieces, best, m);
+    trail.push("e");
     sc.streak++;
     const mult = Math.min(5, sc.streak), pts = 10 * mult;
     sc.exit += pts;
     popup(from.x, from.y - size * 0.6, mult > 1 ? `+${pts} ×${mult}` : `+${pts}`, mult > 1 ? "#f59e0b" : "#2fb344");
     if (best.rot && wasRotated) { sc.rot += 15; popup(from.x, from.y - size * 1.5, "Giro +15", "#8b3ddb"); }
-    const a = DIRS[best.d].angle * Math.PI / 180;
-    const dist = Math.max(cv.clientWidth, cv.clientHeight) * 1.2;
+    const a = DIRS[best.d].angle * Math.PI / 180, dist = Math.max(cv.clientWidth, cv.clientHeight) * 1.2;
     anims.push({ piece: best, from, to: { x: from.x + Math.cos(a) * dist, y: from.y + Math.sin(a) * dist }, t: 0, dur: 450, type: "fly" });
     lastRotated = new Set(pieces.filter(p => before.get(p.id) !== p.d).map(p => p.id));
     updateHud();
+    if (mode === "daily") saveDailySnap();
     if (!pieces.length) {
-      const stars = moves <= par ? 3 : moves <= par + 3 ? 2 : 1;
-      setTimeout(() => finishLevel(stars), 500);
+      gameOver = true; updateHud();
+      setTimeout(() => mode === "daily" ? finishDaily(true) : finishLevel(), 500);
     } else setTimeout(checkStuck, 60);
   } else {
     pieces = apply(pieces, best, m);
+    trail.push("s");
     sc.slide += 10; sc.streak = 0;
     popup(from.x, from.y - size * 0.6, "−10", "#e5484d");
     const moved = pieces.find(p => p.id === best.id);
@@ -506,6 +532,7 @@ function tap(x, y) {
     lastRotated = new Set(pieces.filter(p => before.has(p.id) && before.get(p.id) !== p.d).map(p => p.id));
     anims.push({ piece: moved, from, to: center(m.to.c, m.to.r), t: 0, dur: 360, type: "slide", blockKey: key(m.blocker.c, m.blocker.r) });
     updateHud();
+    if (mode === "daily") saveDailySnap();
     setTimeout(checkStuck, 380);
   }
 }
@@ -514,63 +541,410 @@ cv.addEventListener("pointerdown", e => {
   tap(e.clientX - r.left, e.clientY - r.top);
 });
 $("btnUndo").onclick = () => {
-  if (!history.length || lives <= 0 || busy) return;
+  if (!history.length || lives <= 0 || busy || gameOver || mode === "daily") return;
   const h = history.pop();
-  pieces = h.pieces; moves = h.moves; solIdx = h.solIdx; sc = { ...h.sc, hint: sc.hint }; lastRotated = h.lastRotated; lives--; anims = []; hintId = null;
+  pieces = h.pieces; moves = h.moves; solIdx = h.solIdx; sc = { ...h.sc, hint: sc.hint };
+  lastRotated = h.lastRotated; trail.length = h.trailLen; lives--; anims = []; hintId = null;
   stuck = false; $("banner").hidden = true;
   updateHud(); setTimeout(checkStuck, 30);
 };
-function finishLevel(stars) {
-  const base = levelPoints(), lifeB = lives * 100, starB = stars * 50;
-  const total = Math.max(0, base + lifeB + starB);
-  const prev = bests[level];
-  const isRecord = prev == null || total > prev;
-  if (isRecord) {
-    bests[level] = total;
-    try { localStorage.setItem("hexa_bests_v4", JSON.stringify(bests)); } catch (e) {}
-    submitRanking();
-  }
-  const row = (label, v, sign = "+") => `<tr><td>${label}</td><td>${v === 0 ? "0" : (v > 0 ? sign : "−") + Math.abs(v)}</td></tr>`;
-  let t = row("Peças e correntes", sc.exit);
-  if (sc.rot) t += row("Bônus de giro", sc.rot);
-  if (sc.slide) t += row("Deslizes", -sc.slide);
-  if (sc.hint) t += row("Dicas", -sc.hint);
-  t += row(`Vidas (${lives} × 100)`, lifeB) + row(`Estrelas (${stars} × 50)`, starB);
-  t += `<tr class="total"><td>Total do nível</td><td>${total}</td></tr>`;
-  const rec = isRecord ? (prev == null ? "" : `Novo recorde neste nível! (antes: ${prev})`) : `Seu recorde neste nível: ${prev}`;
-  showOverlay("Nível concluído!", `${moves} jogadas (meta: ${par}).`, "Próximo", () => startLevel(level + 1),
-    stars, "Repetir", () => startLevel(level, true), t, rec || null);
-}
-$("btnRestart").onclick = () => startLevel(level, true);
-$("btnNew").onclick = () => startLevel(level + 1);
+$("btnRestart").onclick = () => { if (mode === "campaign") beginGame(cur); };
 $("btnHint").onclick = () => {
-  if (stuck || hintId !== null || !pieces.length) return;
+  if (mode === "daily" || stuck || gameOver || hintId !== null || !pieces.length) return;
   sc.hint += 30; updateHud();
-  if (solIdx >= 0 && solIdx < solution.length) { hintId = solution[solIdx]; return; }
+  if (solIdx >= 0 && solIdx < cur.sol.length) { hintId = cur.sol[solIdx]; return; }
   const r = solve(pieces, SOLVER_CAP * 4);
   if (r.ok && r.path.length) { hintId = r.path[0].id; return; }
-  // fallback: qualquer peça que sai direto
   const ex = legalMoves(pieces).find(x => x.m.type === "exit");
   if (ex) hintId = ex.p.id;
 };
+$("btnBack").onclick = goMap;
+$("btnGiveUp").onclick = () => {
+  if (gameOver) return;
+  showCard({ title: "Encerrar o desafio?", text: "Os pontos que você fez até agora ficam registrados e você não poderá jogar de novo hoje.",
+    buttons: [{ label: "Continuar jogando", fn: hideCard }, { label: "Encerrar", primary: true, fn: () => finishDaily(false) }] });
+};
+
+// ================= Fim de fase (campanha) =================
+function finishLevel() {
+  const n = cur.n, w = cur.w;
+  const stars = starsFor(moves, cur.par);
+  const lifeB = lives * 100, starB = stars * 50;
+  const total = clampScore(levelPoints() + lifeB + starB);
+  const prev = prog[n];
+  const nextWorldWasOpen = w < 4 && isWorldOpen(w + 1);
+  const improved = !prev || total > prev.score;
+  prog[n] = {
+    score: Math.max(prev ? prev.score : 0, total),
+    stars: Math.max(prev ? prev.stars : 0, stars),
+    moves: Math.min(prev ? prev.moves : Infinity, moves),
+  };
+  store.set("hx5_prog", prog);
+  if (improved || !prev || stars > prev.stars) { submitLevel(n); submitPlayer(); }
+
+  let t = breakdownRows() + row(`Vidas (${lives} × 100)`, lifeB) + row(`Estrelas (${stars} × 50)`, starB);
+  t += `<tr class="total"><td>Total da fase</td><td>${fmt(total)}</td></tr>`;
+  let note = null, warn = false;
+  if (w < 4 && !nextWorldWasOpen && isWorldOpen(w + 1)) note = `Mundo ${w + 1} liberado!`;
+  else if (prev && improved) note = `Novo recorde nesta fase! (antes: ${fmt(prev.score)})`;
+  else if (prev) { note = `Seu recorde nesta fase: ${fmt(prev.score)}`; warn = true; }
+  if (n % 10 === 0 && w < 4 && !isWorldOpen(w + 1)) {
+    note = `Para abrir o Mundo ${w + 1}, junte 20 ★ no Mundo ${w} (você tem ${worldStars(w)}). Repita fases para ganhar mais estrelas.`;
+    warn = true;
+  }
+  const btns = [{ label: "Mapa", fn: goMap }, { label: "Repetir", fn: () => beginGame(cur) }];
+  if (n < 40 && isLevelOpen(n + 1)) btns.push({ label: "Próxima ›", primary: true, fn: () => startCampaign(n + 1) });
+  else if (n === 40) note = note || "Você terminou todos os mundos!";
+  showCard({ title: n % 10 === 0 ? "Chefe derrotado!" : "Fase concluída!", stars, text: `${moves} jogadas (meta: ${cur.par}).`,
+    table: t, note, noteWarn: warn,
+    buttons: [btns, [{ label: "Ver ranking da fase", link: true, fn: () => { hideCard(); openRanking("fase", n); } }]] });
+}
+
+// ================= Desafio diário =================
+function saveDailySnap() {
+  if (mode !== "daily" || gameOver) return;
+  const d = todayDaily() || { date: cur.day, status: "playing", started: false };
+  if (d.status !== "playing") return;
+  d.snap = { pieces, moves, sc, solIdx, trail, lastRotated: [...lastRotated] };
+  store.set("hx5_daily", d);
+}
+async function openDaily() {
+  const day = dayKey();
+  const d = todayDaily();
+  if (d && d.status === "done") { showDailyResult(); return; }
+  if (d && d.status === "playing") { beginGame(dailyLevel(day), d.snap || null); return; }
+  if (rk) {
+    try {
+      const remote = await rk.getDaily(day);
+      if (remote) {
+        // já jogou (ou começou) em outro aparelho
+        const result = remote.done
+          ? { score: remote.score || 0, stars: remote.stars || 0, moves: remote.moves || 0, win: (remote.stars || 0) > 0, trail: "" }
+          : { score: 0, stars: 0, moves: 0, win: false, trail: "", abandoned: true };
+        store.set("hx5_daily", { date: day, status: "done", result, synced: !!remote.done });
+        syncDaily(); renderMap(); showDailyResult(); return;
+      }
+    } catch (e) {}
+  }
+  store.set("hx5_daily", { date: day, status: "playing", started: false, snap: null });
+  beginGame(dailyLevel(day), null);
+  syncDaily();
+}
+function finishDaily(win) {
+  if (mode !== "daily") return;
+  gameOver = true; busy = false; updateHud();
+  $("banner").hidden = true;
+  const stars = win ? starsFor(moves, cur.par) : 0;
+  const winB = win ? 300 : 0, starB = stars * 50;
+  const total = clampScore(levelPoints() + winB + starB);
+  const result = { score: total, stars, moves, win, trail: trail.join("") };
+  store.set("hx5_daily", { date: cur.day, status: "done", result, synced: false });
+  bumpStreak(cur.day);
+  syncDaily();
+  let t = breakdownRows();
+  if (win) t += row("Conclusão", winB) + row(`Estrelas (${stars} × 50)`, starB);
+  t += `<tr class="total"><td>Total do desafio</td><td>${fmt(total)}</td></tr>`;
+  showDailyResult(t);
+}
+function shareText() {
+  const d = todayDaily(); if (!d || !d.result) return "";
+  const r = d.result, no = dailyNo(d.date);
+  const head = `HEXABOARD #${no} ` + (r.win ? starsText(r.stars) : "✖");
+  const lines = [head, `${fmt(r.score)} pontos · ${r.moves} jogadas`];
+  if (r.trail) {
+    const em = [...r.trail].slice(0, 60).map(c => c === "e" ? "🟩" : "🟧");
+    for (let i = 0; i < em.length; i += 10) lines.push(em.slice(i, i + 10).join(""));
+    if (r.trail.length > 60) lines.push("…");
+  }
+  const st = currentStreak();
+  if (st > 0) lines.push("🔥 " + streakLabel(st));
+  lines.push(SITE);
+  return lines.join("\n");
+}
+async function doShare() {
+  const text = shareText();
+  if (navigator.share) {
+    try { await navigator.share({ text }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank", "noopener");
+}
+async function doCopy(btn) {
+  const text = shareText();
+  try { await navigator.clipboard.writeText(text); }
+  catch (e) {
+    const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); } catch (e2) {}
+    ta.remove();
+  }
+  btn.textContent = "Copiado!";
+  setTimeout(() => { btn.textContent = "Copiar"; }, 1600);
+}
+function showDailyResult(table) {
+  const d = todayDaily(); if (!d || !d.result) return;
+  const r = d.result, no = dailyNo(d.date);
+  let text;
+  if (r.abandoned) text = "Você começou o desafio de hoje em outro aparelho e não terminou. A tentativa contou com 0 pontos.";
+  else text = r.win ? `${r.moves} jogadas (meta: ${dailyLevel(d.date).par}).` : "Você não terminou o tabuleiro desta vez.";
+  const st = currentStreak();
+  showCard({
+    title: r.win ? `Desafio #${no} concluído!` : `Fim do desafio #${no}`,
+    stars: r.win ? r.stars : null, text,
+    table: table || `<tr class="total"><td>Pontuação</td><td>${fmt(r.score)}</td></tr>`,
+    note: st > 0 ? "🔥 " + streakLabel(st) : null,
+    share: shareText(),
+    buttons: [
+      [{ label: "Compartilhar", primary: true, fn: doShare }, { label: "Copiar", fn: doCopy }],
+      [{ label: "Ranking do dia", fn: () => { hideCard(); openRanking("hoje"); } }, { label: "Mapa", fn: goMap }],
+    ],
+  });
+}
+
+// ================= Mapa =================
+function renderDailyCard() {
+  const el = $("dailyCard"), day = dayKey(), no = dailyNo(day), d = todayDaily(), st = currentStreak();
+  el.textContent = "";
+  const badge = document.createElement("div"); badge.className = "daily-badge"; badge.textContent = "#" + no;
+  const body = document.createElement("div"); body.style.minWidth = "0";
+  const h = document.createElement("h2"); h.textContent = "Desafio diário";
+  const dt = document.createElement("div"); dt.className = "date"; dt.textContent = prettyDate(day);
+  const p = document.createElement("p");
+  const rowEl = document.createElement("div"); rowEl.className = "row";
+  const btn = (label, fn, primary) => { const b = document.createElement("button"); b.textContent = label; if (primary) b.className = "primary"; b.onclick = fn; rowEl.appendChild(b); };
+  if (d && d.status === "done") {
+    p.textContent = d.result.win ? `Feito: ${fmt(d.result.score)} pontos ${starsText(d.result.stars)}` : `Feito: ${fmt(d.result.score)} pontos (não concluiu)`;
+    btn("Ver resultado", showDailyResult, true);
+    btn("Ranking do dia", () => openRanking("hoje"));
+  } else if (d && d.status === "playing") {
+    p.textContent = "Você começou o desafio de hoje. Termine para entrar no ranking do dia.";
+    btn("Continuar desafio", openDaily, true);
+  } else {
+    p.textContent = "Uma fase nova por dia, igual para todos. Só a primeira tentativa vale.";
+    btn("Jogar desafio", openDaily, true);
+  }
+  if (st > 0) { const s = document.createElement("span"); s.className = "streak"; s.textContent = `🔥 ${st}`; s.title = streakLabel(st); rowEl.appendChild(s); }
+  body.append(h, dt, p, rowEl);
+  el.append(badge, body);
+}
+function renderMap() {
+  $("mapStars").textContent = totalStars();
+  $("mapScore").textContent = fmt(totalScore());
+  renderDailyCard();
+  const wrap = $("worlds"); wrap.textContent = "";
+  wrap.style.display = "flex"; wrap.style.flexDirection = "column"; wrap.style.gap = "16px";
+  let nextMarked = false;
+  WORLDS.forEach((W, wi) => {
+    const w = wi + 1, open = isWorldOpen(w), ws = worldStars(w);
+    const sec = document.createElement("section"); sec.className = "world" + (open ? "" : " locked");
+    sec.style.setProperty("--wc", W.color);
+    const head = document.createElement("div"); head.className = "world-head";
+    const left = document.createElement("div");
+    const h = document.createElement("h2"); h.innerHTML = `<span>Mundo ${w}</span> · `; h.append(W.name);
+    const p = document.createElement("p"); p.textContent = W.desc;
+    left.append(h, p);
+    const right = document.createElement("div"); right.className = "world-stars"; right.innerHTML = `${ws}/30 <span class="star">★</span>`;
+    head.append(left, right); sec.appendChild(head);
+    if (!open) {
+      const note = document.createElement("p"); note.className = "lock-note";
+      const bossDone = !!prog[(w - 1) * 10];
+      note.textContent = `Para abrir: ${bossDone ? "" : `vença a fase chefe ${(w - 1) * 10} e `}junte 20 ★ no Mundo ${w - 1} (você tem ${worldStars(w - 1)}).`;
+      sec.appendChild(note);
+    }
+    const grid = document.createElement("div"); grid.className = "grid";
+    for (let i = 1; i <= 10; i++) {
+      const n = (w - 1) * 10 + i, lo = isLevelOpen(n), done = prog[n];
+      const b = document.createElement("button");
+      b.className = "lvl" + (i === 10 ? " boss" : "") + (done ? " done" : lo ? " todo" : " locked");
+      if (lo && !done && !nextMarked) { b.className += " next"; nextMarked = true; }
+      const hex = document.createElement("span"); hex.className = "hex";
+      const num = document.createElement("b"); num.textContent = n;
+      const sub = document.createElement("small");
+      sub.textContent = done ? starsText(done.stars) : (i === 10 ? "CHEFE" : "");
+      hex.append(num, sub); b.appendChild(hex);
+      b.setAttribute("aria-label", `Fase ${n}` + (i === 10 ? ", chefe" : "") + (done ? `, ${done.stars} estrelas` : lo ? "" : ", bloqueada"));
+      if (lo) b.onclick = () => startCampaign(n); else b.disabled = true;
+      grid.appendChild(b);
+    }
+    sec.appendChild(grid);
+    wrap.appendChild(sec);
+  });
+}
+$("btnRankMap").onclick = () => openRanking("geral");
+
+// ================= Ranking online =================
+let rk = null, connState = "loading", rankTab = "geral", rankLevel = 1, rankUnsub = null, rankRows = [], listState = "loading";
+let writeChain = Promise.resolve();
+const queueWrite = fn => { writeChain = writeChain.then(fn).catch(() => {}); return writeChain; };
+function submitPlayer() {
+  if (!rk || totalScore() <= 0) return;
+  const data = { name: playerName(), total: Math.min(200000, totalScore()), stars: Math.min(120, totalStars()), maxLevel: maxLevel() };
+  const sig = JSON.stringify(data);
+  if (store.get("hx5_psync", "") === sig) return;
+  queueWrite(() => rk.setPlayer(data).then(() => store.set("hx5_psync", sig)));
+}
+function submitLevel(n) {
+  const r = prog[n]; if (!rk || !r) return;
+  const data = { name: playerName(), score: r.score, stars: r.stars, moves: Math.max(1, Math.min(1000, r.moves)) };
+  queueWrite(() => rk.setLevel(n, data).then(() => { const s = store.get("hx5_lsync", {}); s[n] = r.score + "|" + data.name; store.set("hx5_lsync", s); }));
+}
+function flushLevels() {
+  const s = store.get("hx5_lsync", {});
+  for (const n of Object.keys(prog)) if (s[n] !== prog[n].score + "|" + playerName()) submitLevel(Number(n));
+}
+async function syncDaily() {
+  if (!rk) return;
+  const d = store.get("hx5_daily", null); if (!d) return;
+  try {
+    if (d.status === "done" && !d.synced) {
+      const r = d.result;
+      await rk.setDaily(d.date, { name: playerName(), score: r.score, stars: r.stars, moves: Math.max(0, Math.min(1000, r.moves)), done: true });
+      d.synced = true; store.set("hx5_daily", d);
+    } else if (d.status === "playing" && !d.started && d.date === dayKey()) {
+      const remote = await rk.getDaily(d.date);
+      if (remote && remote.done) {
+        // terminou em outro aparelho antes deste
+        const fresh = { date: d.date, status: "done", synced: true,
+          result: { score: remote.score || 0, stars: remote.stars || 0, moves: remote.moves || 0, win: (remote.stars || 0) > 0, trail: "" } };
+        store.set("hx5_daily", fresh);
+        if (mode === "daily" && !gameOver && !$("gameScreen").hidden) {
+          gameOver = true; updateHud();
+          showCard({ title: "Desafio já jogado", text: "Você já terminou o desafio de hoje em outro aparelho. Vale o primeiro resultado.",
+            buttons: [{ label: "Ver resultado", primary: true, fn: () => showDailyResult() }] });
+        }
+        renderMap();
+      } else {
+        if (!remote) await rk.setDaily(d.date, { name: playerName(), score: 0, stars: 0, moves: 0, done: false });
+        const now = store.get("hx5_daily", null);
+        if (now && now.date === d.date && now.status === "playing") { now.started = true; store.set("hx5_daily", now); }
+      }
+    }
+  } catch (e) {}
+}
+function onRankingReady() {
+  rk = window.hxRanking; connState = "on";
+  flushLevels(); submitPlayer(); syncDaily();
+  if (!$("rankScreen").hidden) subscribeRank();
+}
+if (window.hxRanking) onRankingReady(); else window.addEventListener("hx-ready", onRankingReady, { once: true });
+window.addEventListener("hx-error", () => { if (connState === "loading") { connState = "off"; renderRanking(); } });
+setTimeout(() => { if (connState === "loading") { connState = "off"; renderRanking(); } }, 15000);
+
+function subscribeRank() {
+  if (rankUnsub) { rankUnsub(); rankUnsub = null; }
+  rankRows = []; listState = "loading";
+  if (!rk) { renderRanking(); return; }
+  const cb = rows => { rankRows = rows; listState = "ok"; renderRanking(); };
+  const err = () => { listState = "error"; renderRanking(); };
+  if (rankTab === "geral") rankUnsub = rk.watchPlayers(cb, err);
+  else if (rankTab === "hoje") rankUnsub = rk.watchDaily(dayKey(), rows => cb(rows.filter(r => r.done)), err);
+  else rankUnsub = rk.watchLevel(rankLevel, cb, err);
+  renderRanking();
+}
+function openRanking(tab, lvl) {
+  rankTab = tab || "geral";
+  if (lvl) rankLevel = lvl;
+  else if (rankTab === "fase") rankLevel = Math.max(1, maxLevel());
+  const sel = $("rankLevel");
+  if (!sel.options.length) for (let n = 1; n <= 40; n++) { const o = document.createElement("option"); o.value = n; o.textContent = `Fase ${n}` + (n % 10 === 0 ? " (chefe)" : ""); sel.appendChild(o); }
+  sel.value = rankLevel;
+  $("rankName").value = getName();
+  $("rankScreen").hidden = false;
+  subscribeRank();
+  $("btnRankClose").focus();
+}
+function closeRanking() {
+  $("rankScreen").hidden = true;
+  if (rankUnsub) { rankUnsub(); rankUnsub = null; }
+  if (!$("mapScreen").hidden) renderMap();
+}
+function renderRanking() {
+  if ($("rankScreen").hidden) return;
+  for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", String(b.dataset.tab === rankTab));
+  $("rankLevel").hidden = rankTab !== "fase";
+  // caixa "você"
+  const label = $("rankMeLabel"), sub = document.createElement("span"); sub.className = "rank-note";
+  let main = "", value = "—";
+  if (rankTab === "geral") {
+    main = "Sua pontuação total"; value = fmt(totalScore());
+    sub.textContent = maxLevel() ? `${totalStars()} ★ · até a fase ${maxLevel()}` : "Termine uma fase para pontuar";
+  } else if (rankTab === "hoje") {
+    const d = todayDaily();
+    main = `Desafio #${dailyNo(dayKey())}`;
+    if (d && d.status === "done") { value = fmt(d.result.score); sub.textContent = d.result.win ? starsText(d.result.stars) + ` · ${d.result.moves} jogadas` : "não concluiu"; }
+    else sub.textContent = d ? "Termine o desafio para entrar" : "Você ainda não jogou hoje";
+  } else {
+    const r = prog[rankLevel];
+    main = `Seu recorde na fase ${rankLevel}`;
+    if (r) { value = fmt(r.score); sub.textContent = `${starsText(r.stars)} · ${r.moves} jogadas`; }
+    else sub.textContent = isLevelOpen(rankLevel) ? "Ainda não concluída" : "Fase bloqueada";
+  }
+  label.textContent = main; label.appendChild(document.createElement("br")); label.appendChild(sub);
+  $("rankMe").textContent = value;
+  $("rankHelp").textContent = rankTab === "geral"
+    ? "A pontuação total soma o seu melhor resultado em cada fase. Repita fases para melhorar."
+    : rankTab === "hoje" ? "O ranking do dia zera à meia-noite (horário de Brasília). Vale só a primeira tentativa de cada jogador."
+    : "Cada fase guarda o seu melhor resultado.";
+  // lista
+  const list = $("rankList");
+  if (connState === "off") {
+    $("rankNote").textContent = "Sem conexão com o ranking agora. Seu progresso fica salvo neste aparelho e sobe quando a conexão voltar.";
+    list.innerHTML = '<li class="rank-empty">Ranking indisponível.</li>'; return;
+  }
+  if (connState === "loading" || listState === "loading") { $("rankNote").textContent = "Conectando ao ranking…"; list.innerHTML = '<li class="rank-empty">Carregando…</li>'; return; }
+  if (listState === "error") { $("rankNote").textContent = "Não foi possível carregar o ranking. Confira as regras do Firestore."; list.innerHTML = '<li class="rank-empty">Erro ao carregar.</li>'; return; }
+  $("rankNote").textContent = rankTab === "fase" ? `Top 10 da fase ${rankLevel}. Atualiza ao vivo.` : rankTab === "hoje" ? "Top 30 de hoje. Atualiza ao vivo." : "Top 20 de todos os jogadores. Atualiza ao vivo.";
+  if (!rankRows.length) { list.innerHTML = '<li class="rank-empty">Ninguém aqui ainda. Seja o primeiro!</li>'; return; }
+  list.textContent = "";
+  rankRows.forEach((r, i) => {
+    const li = document.createElement("li");
+    if (rk && r.id === rk.uid) li.className = "me";
+    const pos = document.createElement("span"); pos.className = "pos"; pos.textContent = i + 1;
+    const who = document.createElement("span"); who.className = "who";
+    who.textContent = (r.name || "Jogador") + (rk && r.id === rk.uid ? " (você)" : "");
+    const s = document.createElement("small");
+    if (rankTab === "geral") s.textContent = `${r.stars || 0} ★ · até a fase ${r.maxLevel || 0}`;
+    else s.textContent = (r.stars ? starsText(r.stars) : "não concluiu") + ` · ${r.moves || 0} jogadas`;
+    who.appendChild(s);
+    const pts = document.createElement("span"); pts.className = "pts"; pts.textContent = fmt(rankTab === "geral" ? r.total : r.score);
+    li.append(pos, who, pts); list.appendChild(li);
+  });
+}
+for (const b of document.querySelectorAll(".tabs button")) b.onclick = () => {
+  rankTab = b.dataset.tab;
+  if (rankTab === "fase" && !prog[rankLevel]) rankLevel = Math.max(1, maxLevel()) || 1;
+  $("rankLevel").value = rankLevel;
+  subscribeRank();
+};
+$("rankLevel").onchange = e => { rankLevel = Number(e.target.value); subscribeRank(); };
+$("btnRankClose").onclick = closeRanking;
+function renameEverywhere() {
+  store.set("hx5_psync", ""); submitPlayer(); flushLevels();
+}
+$("btnSaveName").onclick = () => {
+  const before = getName();
+  $("rankName").value = setName($("rankName").value);
+  if (getName() !== before) renameEverywhere();
+  renderRanking();
+  $("btnSaveName").textContent = "Salvo!";
+  setTimeout(() => { $("btnSaveName").textContent = "Salvar"; }, 1400);
+};
 
 // ================= Desenho =================
+function center(c, r) { return { x: ox + size * 1.5 * c, y: oy + Math.sqrt(3) * size * (r + 0.5 * (c & 1)) }; }
 function resize() {
   const dpr = window.devicePixelRatio || 1;
   const w = stage.clientWidth, h = stage.clientHeight;
+  if (!w || !h) return;
   cv.width = w * dpr; cv.height = h * dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  // limites do tabuleiro em unidades de "size"
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-  for (const { c, r } of CELLS) {
+  for (const { c, r } of getCells()) {
     const x = 1.5 * c, y = Math.sqrt(3) * (r + 0.5 * (c & 1));
     x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
   }
   size = Math.min(w / (x1 - x0 + 2), h / (y1 - y0 + Math.sqrt(3) + 0.3), 40);
   ox = w / 2 - size * (x0 + x1) / 2; oy = h / 2 - size * (y0 + y1) / 2;
 }
-window.addEventListener("resize", resize);
-
+window.addEventListener("resize", () => { if (!$("gameScreen").hidden) resize(); });
 function hexPath(x, y, s) {
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
@@ -583,7 +957,7 @@ const shownAngle = new Map(); // ângulo exibido por peça (anima o giro)
 function angleFor(p, dt) {
   const target = DIRS[p.d].angle;
   let a = shownAngle.has(p.id) ? shownAngle.get(p.id) : target;
-  let diff = ((target - a) % 360 + 540) % 360 - 180;
+  const diff = ((target - a) % 360 + 540) % 360 - 180;
   a = Math.abs(diff) < 0.5 ? target : a + diff * Math.min(1, dt / 90);
   shownAngle.set(p.id, a); return a;
 }
@@ -595,7 +969,6 @@ function drawPiece(p, x, y, glow = false, ang = DIRS[p.d].angle) {
   if (glow) ctx.restore();
   hexPath(x, y - s * 0.08, s * 0.82); ctx.fillStyle = "rgba(255,255,255,.12)"; ctx.fill();
   if (p.rot) {
-    // anel com setinha: indica peça giratória
     ctx.save(); ctx.translate(x, y);
     ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = Math.max(1.5, size * 0.07);
     const R = s * 0.7;
@@ -616,11 +989,11 @@ function popup(x, y, text, color) { anims.push({ type: "text", x, y, text, color
 let lastT = performance.now(), pulse = 0;
 function frame(now) {
   const dt = Math.min(50, now - lastT); lastT = now; pulse += dt / 300;
+  if ($("gameScreen").hidden) { requestAnimationFrame(frame); return; }
   const css = getComputedStyle(document.documentElement);
-  const w = cv.width, h = cv.height;
-  ctx.clearRect(0, 0, w, h);
+  ctx.clearRect(0, 0, cv.width, cv.height);
   const cellC = css.getPropertyValue("--cell"), edgeC = css.getPropertyValue("--cell-edge");
-  for (const cell of CELLS) {
+  for (const cell of getCells()) {
     const p = center(cell.c, cell.r);
     hexPath(p.x, p.y + size * 0.08, size * 0.94); ctx.fillStyle = edgeC; ctx.fill();
     hexPath(p.x, p.y, size * 0.94); ctx.fillStyle = cellC; ctx.fill();
@@ -657,70 +1030,13 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-// ================= Ranking online (Firebase) =================
-let rk = null, myId = null, rankRows = [], rankState = "loading", writeChain = Promise.resolve();
-function getName() { try { return localStorage.getItem("hexa_name") || ""; } catch (e) { return ""; } }
-function setName(n) {
-  n = String(n || "").replace(/\s+/g, " ").trim().slice(0, 20);
-  try { localStorage.setItem("hexa_name", n); } catch (e) {}
-  return n;
-}
-function renderRanking() {
-  $("rankMe").textContent = totalScore().toLocaleString("pt-BR");
-  const ml = maxLevel();
-  $("rankMeSub").textContent = ml ? `Até o nível ${ml}` : "Termine um nível para pontuar";
-  if (document.activeElement !== $("rankName")) $("rankName").value = getName();
-  const list = $("rankList");
-  if (rankState === "loading") { $("rankNote").textContent = "Conectando ao ranking…"; list.innerHTML = '<li class="rank-empty">Carregando…</li>'; return; }
-  if (rankState === "off") {
-    $("rankNote").textContent = "Sem conexão com o ranking agora. Sua pontuação fica salva neste aparelho e sobe quando a conexão voltar.";
-    list.innerHTML = '<li class="rank-empty">Ranking indisponível.</li>'; return;
-  }
-  $("rankNote").textContent = "Top 20 de todos os jogadores. Atualiza ao vivo.";
-  if (!rankRows.length) { list.innerHTML = '<li class="rank-empty">Ninguém no ranking ainda. Termine um nível para ser o primeiro.</li>'; return; }
-  list.textContent = "";
-  rankRows.forEach((r, i) => {
-    const li = document.createElement("li");
-    if (r.id === myId) li.className = "me";
-    const pos = document.createElement("span"); pos.className = "pos"; pos.textContent = i + 1;
-    const who = document.createElement("span"); who.className = "who";
-    who.textContent = (r.name || "Jogador") + (r.id === myId ? " (você)" : "");
-    const sub = document.createElement("small"); sub.textContent = "até o nível " + (r.maxLevel || 0); who.appendChild(sub);
-    const pts = document.createElement("span"); pts.className = "pts"; pts.textContent = Number(r.score || 0).toLocaleString("pt-BR");
-    li.append(pos, who, pts); list.appendChild(li);
-  });
-}
-function submitRanking() {
-  if (!rk || totalScore() <= 0) return;
-  const body = {
-    name: getName() || "Jogador",
-    score: Math.min(100000, Math.round(totalScore())),
-    maxLevel: Math.min(500, maxLevel()),
-  };
-  writeChain = writeChain.then(() => rk.submit(body)).catch(() => {});
-}
-function onRankingReady() {
-  rk = window.hxRanking; myId = rk.uid; rankState = "on";
-  rk.watch(rows => { rankRows = rows; if (!$("rankScreen").hidden) renderRanking(); },
-           () => { rankState = "off"; if (!$("rankScreen").hidden) renderRanking(); });
-  rk.getMine().then(v => {
-    if (!v || (v.score || 0) < totalScore() || (getName() && v.name !== getName())) submitRanking();
-  }).catch(() => {});
-}
-if (window.hxRanking) onRankingReady(); else window.addEventListener("hx-ready", onRankingReady, { once: true });
-window.addEventListener("hx-error", () => { rankState = "off"; if (!$("rankScreen").hidden) renderRanking(); });
-setTimeout(() => { if (rankState === "loading") { rankState = "off"; if (!$("rankScreen").hidden) renderRanking(); } }, 15000);
-$("btnRank").onclick = () => { renderRanking(); $("rankScreen").hidden = false; $("btnRankClose").focus(); };
-$("btnRankClose").onclick = () => { $("rankScreen").hidden = true; };
-$("btnSaveName").onclick = () => { $("rankName").value = setName($("rankName").value); submitRanking(); renderRanking(); };
-
-// ================= Apresentação (só na primeira vez) =================
-function hexSvg(d, rot, extra = "") {
+// ================= Regras / apresentação =================
+function hexSvg(d, rot) {
   const D = DIRS[d], pts = [];
   for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i; pts.push((20 * Math.cos(a)).toFixed(1) + "," + (20 * Math.sin(a)).toFixed(1)); }
   const L = rot ? 7 : 9;
   const ring = rot ? '<path d="M 6.3 -11.7 A 13.5 13.5 0 1 1 -3.5 -13" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>' : "";
-  return `<g ${extra}><polygon points="${pts.join(" ")}" transform="translate(0 3.5)" fill="${D.dark}"/>` +
+  return `<g><polygon points="${pts.join(" ")}" transform="translate(0 3.5)" fill="${D.dark}"/>` +
     `<polygon points="${pts.join(" ")}" fill="${D.color}"/>${ring}` +
     `<g transform="rotate(${D.angle})" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">` +
     `<path d="M -${L} 0 L ${L} 0 M ${L * 0.4} -${L * 0.6} L ${L} 0 L ${L * 0.4} ${L * 0.6}"/></g></g>`;
@@ -730,63 +1046,26 @@ const ILL = {
   slide: `<svg width="76" height="64" viewBox="-24 -32 76 64">${hexSvg(2, false)}<g transform="translate(32 18)">${hexSvg(5, false)}</g></svg>`,
   rot: `<svg width="64" height="64" viewBox="-30 -30 60 60">${hexSvg(1, true)}</svg>`,
   score: `<svg width="64" height="64" viewBox="0 0 64 64"><text x="32" y="30" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="800" font-size="22" fill="#2fb344">+40</text><text x="32" y="54" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="800" font-size="20" fill="#f59e0b">×4</text></svg>`,
-  meta: `<svg width="64" height="64" viewBox="0 0 64 64"><text x="32" y="30" text-anchor="middle" font-size="22" fill="#e5484d">♥♥♥</text><text x="32" y="56" text-anchor="middle" font-size="22" fill="#f5c518">★★★</text></svg>`,
+  map: `<svg width="64" height="64" viewBox="0 0 64 64"><text x="32" y="28" text-anchor="middle" font-size="20" fill="#e0a800">★★★</text><text x="32" y="54" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="800" font-size="18" fill="#3b82f6">1–40</text></svg>`,
+  daily: `<svg width="64" height="64" viewBox="-32 -32 64 64"><polygon points="-14,-24 14,-24 28,0 14,24 -14,24 -28,0" fill="#f5c518"/><text x="0" y="7" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="800" font-size="20" fill="#5a4300">#1</text></svg>`,
 };
 document.querySelectorAll("[data-ill]").forEach(el => { el.innerHTML = ILL[el.dataset.ill]; });
-function openIntro() { $("intro").hidden = false; $("btnPlay").focus(); }
-$("nick").value = getName();
+function openIntro() { $("nick").value = getName(); $("intro").hidden = false; $("btnPlay").focus(); }
 $("btnPlay").onclick = () => {
-  const n = $("nick").value.trim();
-  if (n && n !== getName()) { setName(n); submitRanking(); }
+  const before = getName(), n = $("nick").value.trim();
+  if (n) setName(n);
+  if (getName() !== before) renameEverywhere();
   $("intro").hidden = true;
-  try { localStorage.setItem("hexa_intro_seen", "1"); } catch (e) {}
+  store.set("hx5_intro", 1);
 };
 $("btnRules").onclick = openIntro;
-let seen = false;
-try { seen = localStorage.getItem("hexa_intro_seen") === "1"; } catch (e) {}
-if (!seen) openIntro();
 
-startLevel(level);
+// ================= Início =================
+renderMap();
+if (!store.get("hx5_intro", 0)) openIntro();
 requestAnimationFrame(frame);
 </script>
-
-
-<script type="module">
-// Ranking online: Firebase (login anônimo + Firestore)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, limit, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyDWEbFgsIrB-oe6tWZW24Z1HQLWadr4zrk",
-  authDomain: "hexaboard-ca937.firebaseapp.com",
-  projectId: "hexaboard-ca937",
-  storageBucket: "hexaboard-ca937.firebasestorage.app",
-  messagingSenderId: "431896965472",
-  appId: "1:431896965472:web:b5caf070e287817c9bae05"
-};
-
-try {
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const fs = getFirestore(app);
-  let announced = false;
-  onAuthStateChanged(auth, u => {
-    if (!u || announced) return;
-    announced = true;
-    window.hxRanking = {
-      uid: u.uid,
-      submit: (data) => setDoc(doc(fs, "ranking", u.uid), { ...data, at: serverTimestamp() }),
-      getMine: () => getDoc(doc(fs, "ranking", u.uid)).then(d => d.exists() ? d.data() : null),
-      watch: (cb, err) => onSnapshot(
-        query(collection(fs, "ranking"), orderBy("score", "desc"), limit(20)),
-        snap => cb(snap.docs.map(d => ({ id: d.id, ...d.data() }))), err),
-    };
-    window.dispatchEvent(new Event("hx-ready"));
-  });
-  signInAnonymously(auth).catch(() => window.dispatchEvent(new Event("hx-error")));
-} catch (e) { window.dispatchEvent(new Event("hx-error")); }
-</script>
+<script type="module" src="js/ranking.js"></script>
 <script>
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));

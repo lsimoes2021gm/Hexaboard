@@ -1,0 +1,60 @@
+// Regras do Firestore do HEXABOARD.
+// Cole este conteúdo em: Firebase Console → Firestore Database → Regras → Publicar.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isMe(uid) { return request.auth != null && request.auth.uid == uid; }
+    function validName(n) { return n is string && n.size() >= 1 && n.size() <= 20; }
+    function intIn(v, lo, hi) { return v is int && v >= lo && v <= hi; }
+
+    // Ranking geral: cada jogador grava só o próprio total
+    match /players/{uid} {
+      allow read: if true;
+      allow write: if isMe(uid)
+        && request.resource.data.keys().hasOnly(['name', 'total', 'stars', 'maxLevel', 'at'])
+        && validName(request.resource.data.name)
+        && intIn(request.resource.data.total, 0, 200000)
+        && intIn(request.resource.data.stars, 0, 120)
+        && intIn(request.resource.data.maxLevel, 0, 40)
+        && request.resource.data.at == request.time;
+    }
+
+    // Ranking de cada fase (1 a 40)
+    match /levels/{levelId}/scores/{uid} {
+      allow read: if true;
+      allow write: if isMe(uid)
+        && levelId.matches('^([1-9]|[1-3][0-9]|40)$')
+        && request.resource.data.keys().hasOnly(['name', 'score', 'stars', 'moves', 'at'])
+        && validName(request.resource.data.name)
+        && intIn(request.resource.data.score, 0, 5000)
+        && intIn(request.resource.data.stars, 1, 3)
+        && intIn(request.resource.data.moves, 1, 1000)
+        && request.resource.data.at == request.time;
+    }
+
+    // Desafio diário: só a primeira tentativa vale.
+    // O jogo cria o registro ao começar (done = false) e grava o resultado UMA vez (done = true).
+    // Depois disso, nada mais pode ser alterado nem apagado.
+    match /daily/{day}/scores/{uid} {
+      allow read: if true;
+      allow create: if isMe(uid)
+        && day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && validDaily();
+      allow update: if isMe(uid)
+        && resource.data.done == false
+        && request.resource.data.done == true
+        && validDaily();
+    }
+    function validDaily() {
+      return request.resource.data.keys().hasOnly(['name', 'score', 'stars', 'moves', 'done', 'at'])
+        && validName(request.resource.data.name)
+        && intIn(request.resource.data.score, 0, 5000)
+        && intIn(request.resource.data.stars, 0, 3)
+        && intIn(request.resource.data.moves, 0, 1000)
+        && request.resource.data.done is bool
+        && request.resource.data.at == request.time;
+    }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}
