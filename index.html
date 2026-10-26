@@ -71,7 +71,9 @@ button.primary { background: var(--accent); color: #fff; box-shadow: 0 4px 0 var
 button.linkish { background: none; box-shadow: none; color: var(--link); padding: 4px 8px; font-size: 15px; }
 .logo { font-family: var(--display); font-weight: 800; font-size: 30px; line-height: 1; letter-spacing: .5px; }
 .logo b { color: #3b82f6; } .logo i { font-style: normal; color: #f59e0b; }
-.icon-btn { width: 38px; height: 38px; padding: 0; border-radius: 50%; font-size: 18px; }
+.icon-btn { width: 38px; height: 38px; padding: 0; border-radius: 50%; font-size: 18px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.icon-btn svg { width: 20px; height: 20px; }
+.hud .snd { margin-left: auto; }
 .screen { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
 /* ---------- Mapa ---------- */
@@ -146,6 +148,10 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
 .card p { margin: 0; color: var(--muted); line-height: 1.4; }
 .card .row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 .stars { font-size: 34px; color: var(--gold); letter-spacing: 4px; line-height: 1; }
+.stars span { display: inline-block; }
+.stars span.off { opacity: .35; }
+.stars.anim span.on { animation: starpop .5s cubic-bezier(.3, 1.7, .5, 1) both; }
+@keyframes starpop { from { transform: scale(0) rotate(-40deg); opacity: 0; } to { transform: none; opacity: 1; } }
 .note { font-family: var(--display); font-weight: 800; color: var(--accent); }
 .note.warn { color: var(--muted); font-family: var(--body); font-weight: 700; font-size: 14px; }
 .breakdown { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 14px; }
@@ -199,6 +205,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
 @media (prefers-reduced-motion: reduce) {
   button:active, .lvl:active { transform: none; }
   .lvl.next .hex { animation: none; }
+  .stars.anim span.on { animation: none; }
 }
 </style>
 </head>
@@ -211,6 +218,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
       <div class="logo"><b>HEXA</b><i>BOARD</i></div>
       <div class="map-actions">
         <button id="btnRankMap">Ranking</button>
+        <button class="icon-btn snd" id="btnSound" aria-label="Som"></button>
         <button class="icon-btn" id="btnRules" aria-label="Ver regras">?</button>
       </div>
     </header>
@@ -228,6 +236,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
   <div class="hud">
     <button class="back" id="btnBack">‹ Mapa</button>
     <div class="hud-title"><b id="gTitle">Fase 1</b><small id="gSub"></small></div>
+    <button class="icon-btn snd" id="btnSoundGame" aria-label="Som"></button>
   </div>
   <div class="stats">
     <div class="stat"><small>Pontos</small><span><span id="score">0</span><span class="combo" id="combo"></span></span></div>
@@ -296,6 +305,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
 </div>
 
 <script src="js/logica.js"></script>
+<script src="js/som.js"></script>
 <script src="js/fases.js"></script>
 <script>
 // ================= Dados fixos =================
@@ -472,10 +482,20 @@ function updateHud() {
 }
 
 // ================= Cartões =================
-function showCard({ title, stars, text, table, note, noteWarn, share, buttons }) {
+function showCard({ title, stars, animStars, text, table, note, noteWarn, share, buttons }) {
   const card = $("card"); card.textContent = "";
   const h = document.createElement("h2"); h.textContent = title; card.appendChild(h);
-  if (stars != null) { const s = document.createElement("div"); s.className = "stars"; s.textContent = starsText(stars); card.appendChild(s); }
+  if (stars != null) {
+    const s = document.createElement("div"); s.className = "stars" + (animStars ? " anim" : "");
+    s.setAttribute("aria-label", `${stars} de 3 estrelas`);
+    for (let k = 0; k < 3; k++) {
+      const sp = document.createElement("span");
+      sp.textContent = k < stars ? "★" : "☆"; sp.className = k < stars ? "on" : "off";
+      if (animStars) sp.style.animationDelay = (0.55 + k * 0.3) + "s";
+      s.appendChild(sp);
+    }
+    card.appendChild(s);
+  }
   if (text) { const p = document.createElement("p"); p.textContent = text; card.appendChild(p); }
   if (table) { const t = document.createElement("table"); t.className = "breakdown"; t.innerHTML = table; card.appendChild(t); }
   if (note) { const n = document.createElement("div"); n.className = "note" + (noteWarn ? " warn" : ""); n.textContent = note; card.appendChild(n); }
@@ -515,14 +535,17 @@ function checkStuck() {
   if (!legalMoves(pieces).length) dead = true;
   else if (solIdx >= 0) dead = false; // ainda no caminho da solução conhecida
   else dead = solve(pieces, SOLVER_CAP * 2).ok === false;
+  const wasStuck = stuck;
   stuck = dead;
   if (mode === "daily") { if (dead) finishDaily(false); return; }
   $("banner").hidden = !dead;
+  if (dead && !wasStuck && lives > 0) Som.stuck();
   if (dead && lives <= 0) outOfLives("Travou sem vidas para desfazer.");
 }
 // Ficou sem vidas e precisa recomeçar. Fase comum: recomeça sem vidas. Chefe: o mundo volta para a primeira fase.
 function outOfLives(why) {
   gameOver = true; busy = false; updateHud();
+  Som.lose();
   store.set("hx6_attempt", null);
   $("banner").hidden = true;
   const n = cur.n, w = cur.w, first = (w - 1) * 10 + 1;
@@ -550,6 +573,7 @@ function tap(x, y) {
   if (m.type === "none") {
     // peça sem cor, ou encostada em outra peça/parede: só treme, não gasta jogada
     anims.push({ piece: best, from, to: from, t: 0, dur: 300, type: "nudge", blockKey: m.blocker ? key(m.blocker.c, m.blocker.r) : null });
+    Som.nudge();
     return;
   }
   if (mode === "campaign" && moves === 0) store.set("hx6_attempt", cur.n);
@@ -564,11 +588,13 @@ function tap(x, y) {
     sc.streak++;
     const mult = Math.min(5, sc.streak), pts = 10 * mult;
     sc.exit += pts;
+    Som.exit(sc.streak);
     popup(from.x, from.y - size * 0.6, mult > 1 ? `+${pts} ×${mult}` : `+${pts}`, mult > 1 ? "#f59e0b" : "#2fb344");
-    if (best.rot && wasRotated) { sc.rot += 15; popup(from.x, from.y - size * 1.5, "Giro +15", "#8b3ddb"); }
+    if (best.rot && wasRotated) { sc.rot += 15; popup(from.x, from.y - size * 1.5, "Giro +15", "#8b3ddb"); Som.bonus(); }
     const a = DIRS[best.d].angle * Math.PI / 180, dist = Math.max(cv.clientWidth, cv.clientHeight) * 1.2;
     anims.push({ piece: best, from, to: { x: from.x + Math.cos(a) * dist, y: from.y + Math.sin(a) * dist }, t: 0, dur: 450, type: "fly" });
     lastRotated = new Set(pieces.filter(p => before.get(p.id) !== p.d).map(p => p.id));
+    if (lastRotated.size) Som.rotate(lastRotated.size);
     updateHud();
     if (mode === "daily") saveDailySnap();
     if (!pieces.length) {
@@ -584,6 +610,7 @@ function tap(x, y) {
     popup(from.x, from.y - size * 0.6, "−10", "#e5484d");
     popup(gc.x, gc.y - size * 0.6, "pintou!", DIRS[g.d].dark);
     anims.push({ piece: best, from, to: from, t: 0, dur: 260, type: "nudge", blockKey: key(g.c, g.r) });
+    Som.paint();
     lastRotated = new Set();
     updateHud();
     if (mode === "daily") saveDailySnap();
@@ -596,7 +623,9 @@ function tap(x, y) {
     if (m.paint != null) { const g = pieces.find(p => p.id === m.paint), gc = center(g.c, g.r); popup(gc.x, gc.y - size * 0.6, "pintou!", DIRS[g.d].dark); }
     const moved = pieces.find(p => p.id === best.id);
     busy = true;
-    lastRotated = new Set(pieces.filter(p => before.has(p.id) && before.get(p.id) !== p.d).map(p => p.id));
+    lastRotated = new Set(pieces.filter(p => before.has(p.id) && before.get(p.id) !== p.d && p.id !== m.paint).map(p => p.id));
+    Som.slide(m.paint != null);
+    if (lastRotated.size) Som.rotate(lastRotated.size);
     anims.push({ piece: moved, from, to: center(m.to.c, m.to.r), t: 0, dur: 360, type: "slide", blockKey: key(m.blocker.c, m.blocker.r) });
     updateHud();
     if (mode === "daily") saveDailySnap();
@@ -613,6 +642,7 @@ $("btnUndo").onclick = () => {
   pieces = h.pieces; moves = h.moves; solIdx = h.solIdx; sc = { ...h.sc, hint: sc.hint };
   lastRotated = h.lastRotated; trail.length = h.trailLen; lives--; setLives(cur.n, lives); anims = []; hintId = null;
   stuck = false; $("banner").hidden = true;
+  Som.undo();
   updateHud(); setTimeout(checkStuck, 30);
 };
 function restartCampaign() {
@@ -637,7 +667,7 @@ $("btnRestart").onclick = () => {
 };
 $("btnHint").onclick = () => {
   if (mode === "daily" || stuck || gameOver || hintId !== null || !pieces.length) return;
-  sc.hint += 30; updateHud();
+  sc.hint += 30; updateHud(); Som.hint();
   if (solIdx >= 0 && solIdx < cur.sol.length) { hintId = cur.sol[solIdx]; return; }
   const r = solve(pieces, SOLVER_CAP * 4);
   if (r.ok && r.path.length) { hintId = r.path[0].id; return; }
@@ -699,7 +729,9 @@ function finishLevel() {
   const btns = [{ label: "Mapa", fn: goMap }, { label: "Repetir", fn: () => beginGame(cur) }];
   if (n < 40 && isLevelOpen(n + 1)) btns.push({ label: "Próxima ›", primary: true, fn: () => startCampaign(n + 1) });
   else if (n === 40) note = note || "Você terminou todos os mundos!";
-  showCard({ title: n % 10 === 0 ? "Chefe derrotado!" : "Fase concluída!", stars, text: `${moves} jogadas (meta: ${cur.par}).`,
+  Som.win(stars);
+  if (note && !warn) Som.jingle();
+  showCard({ title: n % 10 === 0 ? "Chefe derrotado!" : "Fase concluída!", stars, animStars: true, text: `${moves} jogadas (meta: ${cur.par}).`,
     table: t, note, noteWarn: warn,
     buttons: [btns, [{ label: "Ver ranking da fase", link: true, fn: () => { hideCard(); openRanking("fase", n); } }]] });
 }
@@ -745,10 +777,11 @@ function finishDaily(win) {
   store.set("hx5_daily", { date: cur.day, status: "done", result, synced: false });
   bumpStreak(cur.day);
   syncDaily();
+  if (win) Som.win(stars); else Som.lose();
   let t = breakdownRows();
   if (win) t += row("Conclusão", winB) + row(`Estrelas (${stars} × 50)`, starB);
   t += `<tr class="total"><td>Total do desafio</td><td>${fmt(total)}</td></tr>`;
-  showDailyResult(t);
+  showDailyResult(t, true);
 }
 function shareText() {
   const d = todayDaily(); if (!d || !d.result) return "";
@@ -783,7 +816,7 @@ async function doCopy(btn) {
   btn.textContent = "Copiado!";
   setTimeout(() => { btn.textContent = "Copiar"; }, 1600);
 }
-function showDailyResult(table) {
+function showDailyResult(table, fresh) {
   const d = todayDaily(); if (!d || !d.result) return;
   const r = d.result, no = dailyNo(d.date);
   let text;
@@ -792,7 +825,7 @@ function showDailyResult(table) {
   const st = currentStreak();
   showCard({
     title: r.win ? `Desafio #${no} concluído!` : `Fim do desafio #${no}`,
-    stars: r.win ? r.stars : null, text,
+    stars: r.win ? r.stars : null, animStars: !!fresh, text,
     table: table || `<tr class="total"><td>Pontuação</td><td>${fmt(r.score)}</td></tr>`,
     note: st > 0 ? "🔥 " + streakLabel(st) : null,
     share: shareText(),
@@ -1199,6 +1232,31 @@ $("btnPlay").onclick = () => {
   store.set("hx5_intro", 1);
 };
 $("btnRules").onclick = openIntro;
+
+// ================= Som =================
+function soundIcon() {
+  const waves = '<path d="M16 8.5a5 5 0 0 1 0 7M18.8 5.8a9 9 0 0 1 0 12.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+  const cross = '<path d="M16.5 9.5l5 5M21.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+  return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9.5v5h3.5L11 18.5v-13L6.5 9.5z" fill="currentColor"/>' + (Som.on ? waves : cross) + "</svg>";
+}
+function refreshSoundButtons() {
+  for (const id of ["btnSound", "btnSoundGame"]) {
+    const b = $(id); b.innerHTML = soundIcon();
+    b.setAttribute("aria-pressed", String(Som.on));
+    b.setAttribute("aria-label", Som.on ? "Desligar som" : "Ligar som");
+  }
+}
+for (const id of ["btnSound", "btnSoundGame"]) $(id).onclick = () => { Som.toggle(); refreshSoundButtons(); };
+refreshSoundButtons();
+// Navegadores só liberam o áudio depois de um toque
+document.addEventListener("pointerdown", () => Som.unlock(), { passive: true });
+document.addEventListener("keydown", () => Som.unlock());
+// Clique suave em todos os botões (menos os de som, que tocam o próprio aviso)
+document.addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (b && !b.classList.contains("snd") && !b.disabled) Som.click();
+}, true);
+document.addEventListener("visibilitychange", () => { if (document.hidden) Som.suspend(); });
 
 // ================= Início =================
 settleAbandoned();

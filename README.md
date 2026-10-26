@@ -24,6 +24,7 @@ Puzzle de hexágonos com setas, em HTML + JavaScript puro (canvas). Funciona no 
 |---|---|
 | `index.html` | Interface: mapa, jogo, cartões, ranking |
 | `js/logica.js` | Regras, solver e gerador de fases |
+| `js/som.js` | Efeitos sonoros (sintetizados, sem arquivos de áudio) |
 | `js/fases.js` | As 40 fases da campanha (gerado) |
 | `js/ranking.js` | Conexão com o Firebase |
 | `firestore.rules` | Regras de segurança do Firestore |
