@@ -91,7 +91,12 @@ button.linkish { background: none; box-shadow: none; color: var(--link); padding
 .daily p { margin: 4px 0 8px; font-size: 14px; line-height: 1.35; min-width: 0; }
 .daily .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .streak { font-family: var(--display); font-weight: 800; color: #e8590c; }
-.world { --wc: #2fb344; background: var(--panel); border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.world { --wc: #2fb344; background: color-mix(in srgb, var(--wc) 7%, var(--panel)); border-radius: 20px; padding: 0 16px 16px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+.world-art { height: 70px; margin: 0 -16px; }
+.world-art svg { display: block; width: 100%; height: 100%; }
+.world.locked .world-art { filter: grayscale(.85) opacity(.7); }
+#bgfx { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.screen { position: relative; z-index: 1; }
 .world-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .world-head h2 { font-family: var(--display); font-size: 21px; margin: 0; line-height: 1.1; text-wrap: balance; }
 .world-head h2 span { color: var(--wc); }
@@ -210,6 +215,7 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
 </style>
 </head>
 <body>
+<canvas id="bgfx" aria-hidden="true" hidden></canvas>
 
 <!-- ================= Mapa ================= -->
 <section class="screen" id="mapScreen">
@@ -306,17 +312,18 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
 
 <script src="js/logica.js"></script>
 <script src="js/som.js"></script>
+<script src="js/temas.js"></script>
 <script src="js/fases.js"></script>
 <script>
 // ================= Dados fixos =================
 const SITE = "https://lsimoes2021gm.github.io/Hexaboard/";
 const WORLDS = [
-  { name: "Primeiros passos", desc: "Siga as setas e limpe o tabuleiro.", color: "#2fb344" },
-  { name: "Deslize", desc: "Algumas peças só saem se outra deslizar antes.", color: "#3b82f6",
+  { name: "Colmeia", mech: "Primeiros passos", theme: "colmeia", desc: "Primeiros passos: siga as setas e limpe o tabuleiro.", color: "#2f9e44" },
+  { name: "Geleira", mech: "Deslize", theme: "geleira", desc: "Deslize: algumas peças só saem se outra deslizar antes.", color: "#2b85d0",
     tip: "A partir de agora, algumas peças se bloqueiam em círculo e nenhuma sai direto. Para destravar, deslize uma delas para fora do caminho. Cada deslize custa 10 pontos, então escolha bem qual mover." },
-  { name: "Engrenagens", desc: "Peças com anel giram quando uma vizinha sai.", color: "#8b3ddb",
+  { name: "Oficina", mech: "Engrenagens", theme: "oficina", desc: "Engrenagens: peças com anel giram quando uma vizinha sai.", color: "#b0711a",
     tip: "Peças com anel giram 60° no sentido horário sempre que uma vizinha sai do lugar. Uma peça livre pode ficar presa depois de girar, e uma presa pode se soltar. Observe as vizinhas antes de tocar." },
-  { name: "Mestre", desc: "Deslizes e giros juntos em tabuleiros grandes.", color: "#e5484d",
+  { name: "Vulcão", mech: "Mestre", theme: "vulcao", desc: "Mestre: deslizes, giros e peças sem cor em tabuleiros grandes.", color: "#d9480f",
     tip: "Os tabuleiros ficam grandes e misturam tudo: armadilhas, deslizes e engrenagens. Planeje algumas jogadas à frente." },
 ];
 const DAILY_V1 = { radius: 5, density: 0.4, slide: 0.35, rot: 0.2, trap: 0.15 };
@@ -423,6 +430,8 @@ function dailyLevel(day) {
 function showScreen(name) {
   $("mapScreen").hidden = name !== "map";
   $("gameScreen").hidden = name !== "game";
+  $("bgfx").hidden = name !== "game";
+  if (name !== "game") Temas.clear();
 }
 function beginGame(level, snap) {
   cur = level; mode = level.daily ? "daily" : "campaign";
@@ -449,6 +458,7 @@ function beginGame(level, snap) {
   $("banner").hidden = true;
   hideCard();
   showScreen("game");
+  Temas.set(mode === "daily" ? "desafio" : WORLDS[level.w - 1].theme);
   resize(); updateHud();
   if (mode === "daily") saveDailySnap();
   if (snap) setTimeout(checkStuck, 60);
@@ -460,7 +470,7 @@ function startCampaign(n) {
   const w = Math.ceil(n / 10), W = WORLDS[w - 1], seen = store.get("hx6_tips", {});
   let tip = null;
   if (FEATURE_TIPS[n] && !seen[FEATURE_TIPS[n].key]) { tip = FEATURE_TIPS[n]; seen[tip.key] = 1; }
-  else if (W.tip && n % 10 === 1 && !seen["w" + w]) { tip = { title: "Novidade: " + W.name, text: W.tip }; seen["w" + w] = 1; }
+  else if (W.tip && n % 10 === 1 && !seen["w" + w]) { tip = { title: "Novidade: " + W.mech, text: W.tip }; seen["w" + w] = 1; }
   if (tip) {
     store.set("hx6_tips", seen);
     showCard({ title: tip.title, text: tip.text, buttons: [{ label: "Entendi", primary: true, fn: hideCard }] });
@@ -873,6 +883,8 @@ function renderMap() {
     const w = wi + 1, open = isWorldOpen(w), ws = worldStars(w);
     const sec = document.createElement("section"); sec.className = "world" + (open ? "" : " locked");
     sec.style.setProperty("--wc", W.color);
+    const artEl = document.createElement("div"); artEl.className = "world-art"; artEl.innerHTML = Temas.art(W.theme);
+    sec.appendChild(artEl);
     const head = document.createElement("div"); head.className = "world-head";
     const left = document.createElement("div");
     const h = document.createElement("h2"); h.innerHTML = `<span>Mundo ${w}</span> · `; h.append(W.name);
@@ -1085,8 +1097,28 @@ function resize() {
   }
   size = Math.min(w / (x1 - x0 + 2), h / (y1 - y0 + Math.sqrt(3) + 0.3), 40);
   ox = w / 2 - size * (x0 + x1) / 2; oy = h / 2 - size * (y0 + y1) / 2;
+  buildBoardLayer(w, h, dpr);
 }
-window.addEventListener("resize", () => { if (!$("gameScreen").hidden) resize(); });
+// Casas e paredes não mudam durante a fase: desenha uma vez numa camada e só copia a cada quadro
+const boardLayer = document.createElement("canvas"), blc = boardLayer.getContext("2d");
+function buildBoardLayer(w, h, dpr) {
+  boardLayer.width = w * dpr; boardLayer.height = h * dpr;
+  blc.setTransform(dpr, 0, 0, dpr, 0, 0);
+  blc.clearRect(0, 0, w, h);
+  const cells = getCells().slice().sort((a, b) => center(a.c, a.r).y - center(b.c, b.r).y);
+  for (const cell of cells) {
+    const p = center(cell.c, cell.r);
+    if (isWall(cell.c, cell.r)) Temas.drawWall(blc, p.x, p.y, size); else Temas.drawCell(blc, p.x, p.y, size);
+  }
+}
+window.addEventListener("resize", () => { if (!$("gameScreen").hidden) { Temas.resize(); resize(); } });
+// Mudou entre claro e escuro: refaz cenário, tabuleiro e mapa
+function onSchemeChange() {
+  if (!$("gameScreen").hidden) { Temas.set(Temas.name); resize(); }
+  if (!$("mapScreen").hidden) renderMap();
+}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", onSchemeChange);
+new MutationObserver(onSchemeChange).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 function hexPath(x, y, s) {
   ctx.beginPath();
   for (let i = 0; i < 6; i++) {
@@ -1095,22 +1127,7 @@ function hexPath(x, y, s) {
   }
   ctx.closePath();
 }
-// Parede: bloco de pedra mais alto que as casas, com juntas
-function drawWall(x, y, top, edge) {
-  const s = size * 0.94, depth = size * 0.22;
-  hexPath(x, y + depth * 0.5, s); ctx.fillStyle = edge; ctx.fill();
-  hexPath(x, y - depth * 0.5, s); ctx.fillStyle = top; ctx.fill();
-  ctx.save(); ctx.strokeStyle = edge; ctx.lineWidth = Math.max(1.5, size * 0.07); ctx.lineCap = "round";
-  const yy = y - depth * 0.5;
-  ctx.beginPath();
-  ctx.moveTo(x - s * 0.7, yy - s * 0.18); ctx.lineTo(x + s * 0.7, yy - s * 0.18);
-  ctx.moveTo(x - s * 0.7, yy + s * 0.22); ctx.lineTo(x + s * 0.7, yy + s * 0.22);
-  ctx.moveTo(x - s * 0.1, yy - s * 0.18); ctx.lineTo(x - s * 0.1, yy - s * 0.62);
-  ctx.moveTo(x + s * 0.25, yy - s * 0.18); ctx.lineTo(x + s * 0.25, yy + s * 0.22);
-  ctx.moveTo(x - s * 0.3, yy + s * 0.22); ctx.lineTo(x - s * 0.3, yy + s * 0.62);
-  ctx.stroke(); ctx.restore();
-}
-const GREY = { color: "#b9c1cd", dark: "#8a93a3" };
+const GREY = { color: "#aab3c1", dark: "#7a8394" };
 const shownAngle = new Map(); // ângulo exibido por peça (anima o giro)
 function angleFor(p, dt) {
   if (p.d < 0) return 0;
@@ -1156,16 +1173,9 @@ let lastT = performance.now(), pulse = 0;
 function frame(now) {
   const dt = Math.min(50, now - lastT); lastT = now; pulse += dt / 300;
   if ($("gameScreen").hidden) { requestAnimationFrame(frame); return; }
-  const css = getComputedStyle(document.documentElement);
+  Temas.frame(dt);
   ctx.clearRect(0, 0, cv.width, cv.height);
-  const cellC = css.getPropertyValue("--cell"), edgeC = css.getPropertyValue("--cell-edge");
-  const wallC = css.getPropertyValue("--wall"), wallEdge = css.getPropertyValue("--wall-edge");
-  for (const cell of getCells()) {
-    const p = center(cell.c, cell.r);
-    if (isWall(cell.c, cell.r)) { drawWall(p.x, p.y, wallC, wallEdge); continue; }
-    hexPath(p.x, p.y + size * 0.08, size * 0.94); ctx.fillStyle = edgeC; ctx.fill();
-    hexPath(p.x, p.y, size * 0.94); ctx.fillStyle = cellC; ctx.fill();
-  }
+  ctx.drawImage(boardLayer, 0, 0, cv.clientWidth, cv.clientHeight);
   const movingIds = new Set(anims.filter(a => a.type === "slide").map(a => a.piece.id));
   const shake = new Map();
   for (const a of anims) {
