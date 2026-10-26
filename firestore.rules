@@ -11,8 +11,9 @@ service cloud.firestore {
     match /players/{uid} {
       allow read: if true;
       allow write: if isMe(uid)
-        && request.resource.data.keys().hasOnly(['name', 'total', 'stars', 'maxLevel', 'at'])
+        && request.resource.data.keys().hasOnly(['name', 'total', 'stars', 'maxLevel', 'medals', 'at'])
         && validName(request.resource.data.name)
+        && (!('medals' in request.resource.data) || intIn(request.resource.data.medals, 0, 100))
         && intIn(request.resource.data.total, 0, 200000)
         && intIn(request.resource.data.stars, 0, 120)
         && intIn(request.resource.data.maxLevel, 0, 40)

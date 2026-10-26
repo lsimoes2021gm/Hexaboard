@@ -118,6 +118,58 @@ button.linkish { background: none; box-shadow: none; color: var(--link); padding
 .lvl.next .hex { animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse { 50% { transform: scale(1.08); } }
 
+/* ---------- Coleção, moedas e avisos ---------- */
+.coin { width: 1em; height: 1em; vertical-align: -0.14em; margin-left: 3px; }
+.map-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.map-nav button { font-size: 17px; padding: 10px 12px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.badge { background: var(--accent); color: #fff; border-radius: 999px; font-size: 12px; padding: 1px 7px; font-family: var(--body); font-weight: 800; }
+.coins-pill { align-self: center; display: inline-flex; align-items: center; gap: 2px; background: color-mix(in srgb, #f5c518 22%, var(--panel)); border-radius: 999px; padding: 4px 12px; font-family: var(--display); font-weight: 800; font-size: 17px; }
+.toast {
+  position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 12px); z-index: 50; transform: translateX(-50%);
+  background: var(--panel); color: var(--fg); border: 2px solid #f5c518; border-radius: 16px; padding: 10px 16px 10px 52px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.25); min-width: 220px; max-width: calc(100% - 32px); box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 1px; pointer-events: none;
+}
+.toast::before { content: ""; position: absolute; left: 12px; top: 50%; width: 30px; height: 26px; transform: translateY(-50%); background: #f5c518; clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); }
+.toast b { font-family: var(--display); font-size: 16px; line-height: 1.15; }
+.toast span { color: var(--muted); font-size: 13px; }
+.toast.in { animation: toastin 2.9s ease both; }
+@keyframes toastin { 0% { opacity: 0; transform: translate(-50%, -16px); } 8%, 88% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -10px); } }
+.profile { background: var(--panel); border-radius: 18px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.pf-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.pf-top small { color: var(--muted); font-size: 12px; display: block; }
+.pf-name { font-family: var(--display); font-size: 22px; line-height: 1.1; overflow-wrap: anywhere; }
+.pf-coins { font-family: var(--display); font-weight: 800; font-size: 26px; display: flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.pf-coins .coin { width: 26px; height: 26px; }
+.pf-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; }
+.pf-stats div { background: var(--bg); border-radius: 12px; padding: 8px 10px; min-width: 0; }
+.pf-stats dt { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+.pf-stats dd { margin: 0; font-family: var(--display); font-weight: 800; font-size: 20px; font-variant-numeric: tabular-nums; }
+.pf-stats em { font-style: normal; font-size: 13px; color: var(--muted); }
+.ach-list { list-style: none; margin: 0; padding: 0; background: var(--panel); border-radius: 18px; overflow: hidden; }
+.ach-list li { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; padding: 12px 14px; border-top: 1px solid var(--cell); }
+.ach-list li:first-child { border-top: 0; }
+.medal svg { width: 40px; height: 40px; display: block; }
+.medal polygon { fill: var(--cell-edge); }
+.ach-list li.got .medal polygon { fill: #e0a800; }
+.ach-txt { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ach-txt b { font-family: var(--display); font-size: 16px; line-height: 1.15; }
+.ach-txt > span { color: var(--muted); font-size: 13px; line-height: 1.3; }
+.ach-txt small { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.ach-list li:not(.got) .ach-txt b { color: var(--muted); }
+.bar { height: 6px; background: var(--bg); border-radius: 99px; overflow: hidden; margin-top: 4px; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+.reward { font-family: var(--display); font-weight: 800; font-size: 15px; white-space: nowrap; display: inline-flex; align-items: center; }
+.ach-list li:not(.got) .reward { opacity: .6; }
+.skin-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.skin { background: var(--panel); border-radius: 18px; padding: 10px; display: flex; flex-direction: column; gap: 4px; border: 2px solid transparent; }
+.skin.on { border-color: var(--accent); }
+.skin-prev { width: 100%; height: 64px; display: block; background: var(--bg); border-radius: 12px; }
+.skin b { font-family: var(--display); font-size: 17px; margin-top: 4px; }
+.skin > span { color: var(--muted); font-size: 12.5px; line-height: 1.3; flex: 1; }
+.skin button { margin-top: 6px; font-size: 15px; padding: 7px 10px; display: inline-flex; align-items: center; justify-content: center; }
+.skin button:not(.primary) { background: var(--bg); }
+
 /* ---------- Jogo ---------- */
 .hud { display: flex; align-items: center; gap: 12px; max-width: 640px; width: 100%; margin: 0 auto; }
 .back { padding: 6px 12px; font-size: 15px; flex-shrink: 0; }
@@ -132,7 +184,7 @@ button.linkish { background: none; box-shadow: none; color: var(--link); padding
 .combo { font-family: var(--display); font-weight: 800; font-size: 13px; color: #f59e0b; margin-left: 2px; }
 .hearts { color: var(--heart); font-size: 18px; letter-spacing: 2px; }
 .stage { flex: 1; min-height: 0; position: relative; max-width: 640px; width: 100%; margin: 6px auto; }
-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: manipulation; }
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: manipulation; }
 .bar { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; max-width: 640px; width: 100%; margin: 0 auto; }
 .cost { font-family: var(--body); font-size: 12px; color: var(--heart); font-weight: 700; }
 .banner {
@@ -223,7 +275,6 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
     <header class="map-head">
       <div class="logo"><b>HEXA</b><i>BOARD</i></div>
       <div class="map-actions">
-        <button id="btnRankMap">Ranking</button>
         <button class="icon-btn snd" id="btnSound" aria-label="Som"></button>
         <button class="icon-btn" id="btnRules" aria-label="Ver regras">?</button>
       </div>
@@ -231,6 +282,11 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
     <div class="totals">
       <span><b id="mapStars">0</b> <span class="star">★</span></span>
       <span><b id="mapScore">0</b> pontos</span>
+      <span><b data-coins>0</b><svg class="coin" viewBox="0 0 20 20" aria-label="moedas"><circle cx="10" cy="10" r="9" fill="#f5c518"/><circle cx="10" cy="10" r="6.6" fill="none" stroke="#c99a00" stroke-width="1.5"/><path d="M10 6.3l3.2 1.85v3.7L10 13.7l-3.2-1.85v-3.7z" fill="#c99a00"/></svg></span>
+    </div>
+    <div class="map-nav">
+      <button id="btnRankMap">Ranking</button>
+      <button id="btnCol">Coleção <span class="badge" id="colBadge"></span></button>
     </div>
     <div class="daily" id="dailyCard"></div>
     <div id="worlds"></div>
@@ -286,6 +342,20 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
   </div>
 </div>
 
+<!-- ================= Coleção ================= -->
+<div class="full" id="colScreen" hidden>
+  <div class="full-inner">
+    <div class="rank-head"><h2>Coleção</h2><button id="btnColClose">Voltar</button></div>
+    <div class="profile" id="colProfile"></div>
+    <div class="tabs" role="tablist">
+      <button role="tab" data-ctab="conquistas">Conquistas</button>
+      <button role="tab" data-ctab="estilos">Estilos de peça</button>
+    </div>
+    <div id="colBody" style="display:flex;flex-direction:column;gap:12px"></div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden role="status" aria-live="polite"><b id="toastTitle"></b><span id="toastSub"></span></div>
+
 <!-- ================= Regras / apresentação ================= -->
 <div class="full intro" id="intro" hidden>
   <div class="full-inner">
@@ -313,6 +383,8 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: 
 <script src="js/logica.js"></script>
 <script src="js/som.js"></script>
 <script src="js/temas.js"></script>
+<script src="js/pecas.js"></script>
+<script src="js/colecao.js"></script>
 <script src="js/fases.js"></script>
 <script>
 // ================= Dados fixos =================
@@ -408,7 +480,7 @@ function todayDaily() { const d = store.get("hx5_daily", null); return d && d.da
 // ================= Estado do jogo =================
 let mode = "campaign", cur = null, pieces = [], lives, moves, history, solIdx, trail, gameOver = false;
 let size = 30, ox = 0, oy = 0, anims = [], hintId = null, busy = false, stuck = false;
-let sc, lastRotated = new Set();
+let sc, lastRotated = new Set(), usedUndo = false, usedHint = false;
 const newScore = () => ({ exit: 0, rot: 0, slide: 0, hint: 0, streak: 0 });
 const levelPoints = () => sc.exit + sc.rot - sc.slide - sc.hint;
 const clampScore = v => Math.max(0, Math.min(5000, Math.round(v)));
@@ -444,6 +516,7 @@ function beginGame(level, snap) {
   }
   lives = mode === "campaign" ? livesOf(level.n) : MAX_LIVES;
   history = []; anims = []; hintId = null; busy = false; stuck = false; gameOver = false;
+  usedUndo = false; usedHint = false;
   shownAngle.clear();
   if (mode === "daily") {
     $("gTitle").textContent = "Desafio #" + level.no;
@@ -492,7 +565,7 @@ function updateHud() {
 }
 
 // ================= Cartões =================
-function showCard({ title, stars, animStars, text, table, note, noteWarn, share, buttons }) {
+function showCard({ title, stars, animStars, text, table, note, noteWarn, coins, share, buttons }) {
   const card = $("card"); card.textContent = "";
   const h = document.createElement("h2"); h.textContent = title; card.appendChild(h);
   if (stars != null) {
@@ -509,6 +582,7 @@ function showCard({ title, stars, animStars, text, table, note, noteWarn, share,
   if (text) { const p = document.createElement("p"); p.textContent = text; card.appendChild(p); }
   if (table) { const t = document.createElement("table"); t.className = "breakdown"; t.innerHTML = table; card.appendChild(t); }
   if (note) { const n = document.createElement("div"); n.className = "note" + (noteWarn ? " warn" : ""); n.textContent = note; card.appendChild(n); }
+  if (coins) { const c = document.createElement("div"); c.className = "coins-pill"; c.innerHTML = `+${fmt(coins)} ${Colecao.COIN}`; c.setAttribute("aria-label", `${coins} moedas`); card.appendChild(c); }
   if (share) { const pre = document.createElement("pre"); pre.className = "share-preview"; pre.textContent = share; card.appendChild(pre); }
   let first = null;
   const rows = Array.isArray(buttons[0]) ? buttons : [buttons];
@@ -599,8 +673,9 @@ function tap(x, y) {
     const mult = Math.min(5, sc.streak), pts = 10 * mult;
     sc.exit += pts;
     Som.exit(sc.streak);
+    Colecao.stat("maxCombo", sc.streak, "max");
     popup(from.x, from.y - size * 0.6, mult > 1 ? `+${pts} ×${mult}` : `+${pts}`, mult > 1 ? "#f59e0b" : "#2fb344");
-    if (best.rot && wasRotated) { sc.rot += 15; popup(from.x, from.y - size * 1.5, "Giro +15", "#8b3ddb"); Som.bonus(); }
+    if (best.rot && wasRotated) { sc.rot += 15; popup(from.x, from.y - size * 1.5, "Giro +15", "#8b3ddb"); Som.bonus(); Colecao.stat("rotBonus"); }
     const a = DIRS[best.d].angle * Math.PI / 180, dist = Math.max(cv.clientWidth, cv.clientHeight) * 1.2;
     anims.push({ piece: best, from, to: { x: from.x + Math.cos(a) * dist, y: from.y + Math.sin(a) * dist }, t: 0, dur: 450, type: "fly" });
     lastRotated = new Set(pieces.filter(p => before.get(p.id) !== p.d).map(p => p.id));
@@ -621,6 +696,7 @@ function tap(x, y) {
     popup(gc.x, gc.y - size * 0.6, "pintou!", DIRS[g.d].dark);
     anims.push({ piece: best, from, to: from, t: 0, dur: 260, type: "nudge", blockKey: key(g.c, g.r) });
     Som.paint();
+    Colecao.stat("paints");
     lastRotated = new Set();
     updateHud();
     if (mode === "daily") saveDailySnap();
@@ -635,6 +711,7 @@ function tap(x, y) {
     busy = true;
     lastRotated = new Set(pieces.filter(p => before.has(p.id) && before.get(p.id) !== p.d && p.id !== m.paint).map(p => p.id));
     Som.slide(m.paint != null);
+    if (m.paint != null) Colecao.stat("paints");
     if (lastRotated.size) Som.rotate(lastRotated.size);
     anims.push({ piece: moved, from, to: center(m.to.c, m.to.r), t: 0, dur: 360, type: "slide", blockKey: key(m.blocker.c, m.blocker.r) });
     updateHud();
@@ -652,7 +729,7 @@ $("btnUndo").onclick = () => {
   pieces = h.pieces; moves = h.moves; solIdx = h.solIdx; sc = { ...h.sc, hint: sc.hint };
   lastRotated = h.lastRotated; trail.length = h.trailLen; lives--; setLives(cur.n, lives); anims = []; hintId = null;
   stuck = false; $("banner").hidden = true;
-  Som.undo();
+  Som.undo(); usedUndo = true;
   updateHud(); setTimeout(checkStuck, 30);
 };
 function restartCampaign() {
@@ -677,7 +754,7 @@ $("btnRestart").onclick = () => {
 };
 $("btnHint").onclick = () => {
   if (mode === "daily" || stuck || gameOver || hintId !== null || !pieces.length) return;
-  sc.hint += 30; updateHud(); Som.hint();
+  sc.hint += 30; updateHud(); Som.hint(); usedHint = true;
   if (solIdx >= 0 && solIdx < cur.sol.length) { hintId = cur.sol[solIdx]; return; }
   const r = solve(pieces, SOLVER_CAP * 4);
   if (r.ok && r.path.length) { hintId = r.path[0].id; return; }
@@ -721,6 +798,7 @@ function finishLevel() {
   store.set("hx6_attempt", null);
   setLives(n, MAX_LIVES);
   const i = (n - 1) % 10 + 1;
+  const comeback = n % 10 === 0 && run.reset && run.reset[w];
   if (i > (run[w] || 0)) run[w] = i;
   if (run[w] >= 10 && run.reset) delete run.reset[w];
   saveRun();
@@ -739,11 +817,22 @@ function finishLevel() {
   const btns = [{ label: "Mapa", fn: goMap }, { label: "Repetir", fn: () => beginGame(cur) }];
   if (n < 40 && isLevelOpen(n + 1)) btns.push({ label: "Próxima ›", primary: true, fn: () => startCampaign(n + 1) });
   else if (n === 40) note = note || "Você terminou todos os mundos!";
+  // Moedas: 10 por estrela nova (repetir uma fase só rende as estrelas que faltavam)
+  const newStars = Math.max(0, stars - (prev ? prev.stars : 0));
+  const coins = newStars * 10;
+  Colecao.addCoins(coins);
   Som.win(stars);
   if (note && !warn) Som.jingle();
   showCard({ title: n % 10 === 0 ? "Chefe derrotado!" : "Fase concluída!", stars, animStars: true, text: `${moves} jogadas (meta: ${cur.par}).`,
-    table: t, note, noteWarn: warn,
+    table: t, note, noteWarn: warn, coins,
     buttons: [btns, [{ label: "Ver ranking da fase", link: true, fn: () => { hideCard(); openRanking("fase", n); } }]] });
+  // conquistas (os avisos aparecem por cima do cartão)
+  const S = Colecao.stats;
+  S.wins++; if (!usedHint) S.noHintWins++;
+  if (n % 10 === 0 && !usedHint && !usedUndo) S.cleanBoss++;
+  if (prev && improved) S.records++;
+  if (comeback) S.comebacks++;
+  setTimeout(() => Colecao.stat("wins", 0), 1400);
 }
 
 // ================= Desafio diário =================
@@ -788,6 +877,14 @@ function finishDaily(win) {
   bumpStreak(cur.day);
   syncDaily();
   if (win) Som.win(stars); else Som.lose();
+  // Moedas do desafio: 20 por terminar + 5 por estrela + 5 por dia seguido (até 50)
+  const st = currentStreak();
+  const coins = (win ? 20 + stars * 5 : 5) + Math.min(50, 5 * st);
+  Colecao.addCoins(coins);
+  dailyCoins = coins;
+  const S = Colecao.stats;
+  S.dailies++; if (stars === 3) S.daily3++;
+  setTimeout(() => Colecao.stat("bestStreak", st, "max"), 1400);
   let t = breakdownRows();
   if (win) t += row("Conclusão", winB) + row(`Estrelas (${stars} × 50)`, starB);
   t += `<tr class="total"><td>Total do desafio</td><td>${fmt(total)}</td></tr>`;
@@ -826,6 +923,7 @@ async function doCopy(btn) {
   btn.textContent = "Copiado!";
   setTimeout(() => { btn.textContent = "Copiar"; }, 1600);
 }
+let dailyCoins = 0;
 function showDailyResult(table, fresh) {
   const d = todayDaily(); if (!d || !d.result) return;
   const r = d.result, no = dailyNo(d.date);
@@ -835,7 +933,7 @@ function showDailyResult(table, fresh) {
   const st = currentStreak();
   showCard({
     title: r.win ? `Desafio #${no} concluído!` : `Fim do desafio #${no}`,
-    stars: r.win ? r.stars : null, animStars: !!fresh, text,
+    stars: r.win ? r.stars : null, animStars: !!fresh, text, coins: fresh ? dailyCoins : 0,
     table: table || `<tr class="total"><td>Pontuação</td><td>${fmt(r.score)}</td></tr>`,
     note: st > 0 ? "🔥 " + streakLabel(st) : null,
     share: shareText(),
@@ -874,6 +972,7 @@ function renderDailyCard() {
 }
 function renderMap() {
   $("mapStars").textContent = totalStars();
+  $("colBadge").textContent = `${Colecao.medals}/${Colecao.total}`;
   $("mapScore").textContent = fmt(totalScore());
   renderDailyCard();
   const wrap = $("worlds"); wrap.textContent = "";
@@ -923,17 +1022,26 @@ function renderMap() {
   });
 }
 $("btnRankMap").onclick = () => openRanking("geral");
+$("btnCol").onclick = () => Colecao.open();
+$("btnColClose").onclick = () => Colecao.close();
+for (const b of document.querySelectorAll("[data-ctab]")) b.onclick = () => Colecao.setTab(b.dataset.ctab);
 
 // ================= Ranking online =================
 let rk = null, connState = "loading", rankTab = "geral", rankLevel = 1, rankUnsub = null, rankRows = [], listState = "loading";
 let writeChain = Promise.resolve();
 const queueWrite = fn => { writeChain = writeChain.then(fn).catch(() => {}); return writeChain; };
+let medalsAllowed = true; // se as regras do Firestore ainda não aceitam "medals", envia sem
 function submitPlayer() {
   if (!rk || totalScore() <= 0) return;
   const data = { name: playerName(), total: Math.min(200000, totalScore()), stars: Math.min(120, totalStars()), maxLevel: maxLevel() };
+  if (medalsAllowed) data.medals = Math.min(100, Colecao.medals);
   const sig = JSON.stringify(data);
   if (store.get("hx6_psync", "") === sig) return;
-  queueWrite(() => rk.setPlayer(data).then(() => store.set("hx6_psync", sig)));
+  queueWrite(() => rk.setPlayer(data).then(() => store.set("hx6_psync", sig)).catch(e => {
+    if (!medalsAllowed) throw e;
+    medalsAllowed = false; delete data.medals;
+    return rk.setPlayer(data).then(() => store.set("hx6_psync", JSON.stringify(data)));
+  }));
 }
 function submitLevel(n) {
   const r = prog[n]; if (!rk || !r) return;
@@ -1012,7 +1120,7 @@ function closeRanking() {
 }
 function renderRanking() {
   if ($("rankScreen").hidden) return;
-  for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", String(b.dataset.tab === rankTab));
+  for (const b of document.querySelectorAll("#rankScreen .tabs button")) b.setAttribute("aria-selected", String(b.dataset.tab === rankTab));
   $("rankLevel").hidden = rankTab !== "fase";
   // caixa "você"
   const label = $("rankMeLabel"), sub = document.createElement("span"); sub.className = "rank-note";
@@ -1055,14 +1163,14 @@ function renderRanking() {
     const who = document.createElement("span"); who.className = "who";
     who.textContent = (r.name || "Jogador") + (rk && r.id === rk.uid ? " (você)" : "");
     const s = document.createElement("small");
-    if (rankTab === "geral") s.textContent = `${r.stars || 0} ★ · até a fase ${r.maxLevel || 0}`;
+    if (rankTab === "geral") s.textContent = `${r.stars || 0} ★ · até a fase ${r.maxLevel || 0}` + (r.medals ? ` · ${r.medals} conquistas` : "");
     else s.textContent = (r.stars ? starsText(r.stars) : "não concluiu") + ` · ${r.moves || 0} jogadas`;
     who.appendChild(s);
     const pts = document.createElement("span"); pts.className = "pts"; pts.textContent = fmt(rankTab === "geral" ? r.total : r.score);
     li.append(pos, who, pts); list.appendChild(li);
   });
 }
-for (const b of document.querySelectorAll(".tabs button")) b.onclick = () => {
+for (const b of document.querySelectorAll("#rankScreen .tabs button")) b.onclick = () => {
   rankTab = b.dataset.tab;
   if (rankTab === "fase" && !prog[rankLevel]) rankLevel = Math.max(1, maxLevel()) || 1;
   $("rankLevel").value = rankLevel;
@@ -1098,6 +1206,7 @@ function resize() {
   size = Math.min(w / (x1 - x0 + 2), h / (y1 - y0 + Math.sqrt(3) + 0.3), 40);
   ox = w / 2 - size * (x0 + x1) / 2; oy = h / 2 - size * (y0 + y1) / 2;
   buildBoardLayer(w, h, dpr);
+  Pecas.clear();
 }
 // Casas e paredes não mudam durante a fase: desenha uma vez numa camada e só copia a cada quadro
 const boardLayer = document.createElement("canvas"), blc = boardLayer.getContext("2d");
@@ -1138,34 +1247,7 @@ function angleFor(p, dt) {
   shownAngle.set(p.id, a); return a;
 }
 function drawPiece(p, x, y, glow = false, ang = p.d >= 0 ? DIRS[p.d].angle : 0) {
-  const D = p.d >= 0 ? DIRS[p.d] : GREY, s = size * 0.94, depth = size * 0.16;
-  if (glow) { ctx.save(); ctx.shadowColor = "#fff"; ctx.shadowBlur = 18; }
-  hexPath(x, y + depth, s); ctx.fillStyle = D.dark; ctx.fill();
-  hexPath(x, y, s); ctx.fillStyle = D.color; ctx.fill();
-  if (glow) ctx.restore();
-  hexPath(x, y - s * 0.08, s * 0.82); ctx.fillStyle = "rgba(255,255,255,.12)"; ctx.fill();
-  if (p.d < 0) {
-    // sem cor: só um anel tracejado no centro, sem seta
-    ctx.save(); ctx.strokeStyle = "rgba(255,255,255,.95)"; ctx.lineWidth = Math.max(1.5, size * 0.08);
-    ctx.setLineDash([size * 0.12, size * 0.1]);
-    ctx.beginPath(); ctx.arc(x, y, s * 0.36, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-    return;
-  }
-  if (p.rot) {
-    ctx.save(); ctx.translate(x, y);
-    ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = Math.max(1.5, size * 0.07);
-    const R = s * 0.7;
-    ctx.beginPath(); ctx.arc(0, 0, R, -Math.PI * 0.35, Math.PI * 1.45); ctx.stroke();
-    const ea = Math.PI * 1.45, ex = R * Math.cos(ea), ey = R * Math.sin(ea), t = s * 0.16;
-    ctx.beginPath(); ctx.moveTo(ex - t, ey - t * 0.2); ctx.lineTo(ex + t * 0.2, ey); ctx.lineTo(ex - t * 0.1, ey + t);
-    ctx.stroke(); ctx.restore();
-  }
-  ctx.save(); ctx.translate(x, y); ctx.rotate(ang * Math.PI / 180);
-  ctx.strokeStyle = "#fff"; ctx.lineWidth = Math.max(2, size * 0.13); ctx.lineCap = "round"; ctx.lineJoin = "round";
-  const L = s * (p.rot ? 0.34 : 0.42);
-  ctx.beginPath(); ctx.moveTo(-L, 0); ctx.lineTo(L, 0);
-  ctx.moveTo(L * 0.4, -L * 0.6); ctx.lineTo(L, 0); ctx.lineTo(L * 0.4, L * 0.6);
-  ctx.stroke(); ctx.restore();
+  Pecas.draw(ctx, p, x, y, size, ang, glow);
 }
 const ease = t => 1 - Math.pow(1 - t, 3);
 function popup(x, y, text, color) { anims.push({ type: "text", x, y, text, color, t: 0, dur: 900 }); }
@@ -1270,6 +1352,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) Som.s
 
 // ================= Início =================
 settleAbandoned();
+Colecao.init();
 renderMap();
 if (!store.get("hx5_intro", 0)) openIntro();
 requestAnimationFrame(frame);

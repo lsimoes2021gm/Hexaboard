@@ -18,6 +18,7 @@ Puzzle de hexágonos com setas, em HTML + JavaScript puro (canvas). Funciona no 
 - **Campanha:** 4 mundos × 10 fases fixas: Colmeia, Geleira, Oficina e Vulcão, cada um com cenário próprio. Para abrir um mundo, vença a fase chefe do anterior e junte 20 estrelas nele. O chefe 10 estreia as paredes e o chefe 20, as peças sem cor.
 - **Desafio diário:** uma fase por dia (horário de Brasília), igual para todos. Só a primeira tentativa vale.
 - **Ranking online (Firebase):** geral, por fase e do dia.
+- **Coleção:** 23 conquistas, moedas (10 por estrela nova, conquistas e desafio diário) e estilos de peça para comprar.
 
 ## Estrutura
 | Arquivo | Conteúdo |
@@ -25,6 +26,8 @@ Puzzle de hexágonos com setas, em HTML + JavaScript puro (canvas). Funciona no 
 | `index.html` | Interface: mapa, jogo, cartões, ranking |
 | `js/logica.js` | Regras, solver e gerador de fases |
 | `js/som.js` | Efeitos sonoros (sintetizados, sem arquivos de áudio) |
+| `js/pecas.js` | Estilos de peça (Clássico, Gemas, Balas, Origami, Pixel, Neon) |
+| `js/colecao.js` | Moedas, conquistas, perfil e loja de estilos |
 | `js/temas.js` | Visual de cada mundo: cenário animado, casas, paredes e arte do mapa |
 | `js/fases.js` | As 40 fases da campanha (gerado) |
 | `js/ranking.js` | Conexão com o Firebase |
@@ -39,4 +42,4 @@ node tools/gerar-fases.js
 Atenção: mudar as fases invalida o ranking por fase de quem já jogou.
 
 ## Publicar uma atualização
-Ao mudar qualquer arquivo, aumente o número em `CACHE` no `sw.js` (ex.: `hexaboard-v7`) para os celulares baixarem a versão nova.
+Ao mudar qualquer arquivo, aumente o número em `CACHE` no `sw.js` (ex.: `hexaboard-v9`) para os celulares baixarem a versão nova.

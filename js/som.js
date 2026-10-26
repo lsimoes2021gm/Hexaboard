@@ -167,6 +167,10 @@ const Som = (() => {
     }),
     // Recorde ou mundo liberado
     jingle: () => play(() => [783.99, 987.77, 1174.66, 1567.98].forEach((f, k) => bell(f, 1.5 + k * 0.08, 0.12, 0.45))),
+    // Conquista desbloqueada
+    medal: () => play(() => { [1046.5, 1318.5, 1568, 2093].forEach((f, k) => bell(f, k * 0.07, 0.13, 0.45)); noise({ t: 0.28, dur: 0.3, vol: 0.05, type: "highpass", f: 5000, f2: 9000 }); }),
+    // Compra / moedas
+    coin: () => play(() => { bell(1975.5, 0, 0.14, 0.25); bell(2637, 0.08, 0.14, 0.4); }),
     // Perdeu (sem vidas, chefe venceu, desafio sem terminar)
     lose: () => play(() => [392, 349.23, 311.13, 261.63].forEach((f, k) => tone({ f, t: k * 0.16, dur: 0.3, vol: 0.14, type: "triangle", lp: 2000 }))),
   };
