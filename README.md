@@ -28,6 +28,7 @@ Puzzle de hexágonos com setas, em HTML + JavaScript puro (canvas). Funciona no 
 | `js/som.js` | Efeitos sonoros (sintetizados, sem arquivos de áudio) |
 | `js/pecas.js` | Estilos de peça (Clássico, Gemas, Balas, Origami, Pixel, Neon) |
 | `js/colecao.js` | Moedas, conquistas, perfil e loja de estilos |
+| `js/efeitos.js` | Efeitos visuais: faíscas, rastro, poeira, respingo, confete, peças caindo e vibração |
 | `js/temas.js` | Visual de cada mundo: cenário animado, casas, paredes e arte do mapa |
 | `js/fases.js` | As 40 fases da campanha (gerado) |
 | `js/ranking.js` | Conexão com o Firebase |
@@ -42,4 +43,4 @@ node tools/gerar-fases.js
 Atenção: mudar as fases invalida o ranking por fase de quem já jogou.
 
 ## Publicar uma atualização
-Ao mudar qualquer arquivo, aumente o número em `CACHE` no `sw.js` (ex.: `hexaboard-v9`) para os celulares baixarem a versão nova.
+Ao mudar qualquer arquivo, aumente o número em `CACHE` no `sw.js` (ex.: `hexaboard-v10`) para os celulares baixarem a versão nova.

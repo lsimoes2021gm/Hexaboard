@@ -95,6 +95,7 @@ button.linkish { background: none; box-shadow: none; color: var(--link); padding
 .world-art { height: 70px; margin: 0 -16px; }
 .world-art svg { display: block; width: 100%; height: 100%; }
 .world.locked .world-art { filter: grayscale(.85) opacity(.7); }
+#confetti { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 45; pointer-events: none; }
 #bgfx { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
 .screen { position: relative; z-index: 1; }
 .world-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
@@ -275,6 +276,7 @@ button.linkish { background: none; box-shadow: none; color: var(--link); padding
     <header class="map-head">
       <div class="logo"><b>HEXA</b><i>BOARD</i></div>
       <div class="map-actions">
+        <button class="icon-btn" id="btnVib" aria-label="Vibração" hidden></button>
         <button class="icon-btn snd" id="btnSound" aria-label="Som"></button>
         <button class="icon-btn" id="btnRules" aria-label="Ver regras">?</button>
       </div>
@@ -354,6 +356,7 @@ button.linkish { background: none; box-shadow: none; color: var(--link); padding
     <div id="colBody" style="display:flex;flex-direction:column;gap:12px"></div>
   </div>
 </div>
+<canvas id="confetti" aria-hidden="true" hidden></canvas>
 <div class="toast" id="toast" hidden role="status" aria-live="polite"><b id="toastTitle"></b><span id="toastSub"></span></div>
 
 <!-- ================= Regras / apresentação ================= -->
@@ -385,6 +388,7 @@ button.linkish { background: none; box-shadow: none; color: var(--link); padding
 <script src="js/temas.js"></script>
 <script src="js/pecas.js"></script>
 <script src="js/colecao.js"></script>
+<script src="js/efeitos.js"></script>
 <script src="js/fases.js"></script>
 <script>
 // ================= Dados fixos =================
@@ -533,6 +537,8 @@ function beginGame(level, snap) {
   showScreen("game");
   Temas.set(mode === "daily" ? "desafio" : WORLDS[level.w - 1].theme);
   resize(); updateHud();
+  Efeitos.clear();
+  Efeitos.intro(pieces, p => center(p.c, p.r));
   if (mode === "daily") saveDailySnap();
   if (snap) setTimeout(checkStuck, 60);
 }
@@ -601,6 +607,11 @@ function showCard({ title, stars, animStars, text, table, note, noteWarn, coins,
   }
   $("overlay").hidden = false;
   (first || card.querySelector("button")).focus();
+  // vitória: pontuação contando de 0 até o total
+  if (animStars) {
+    const cell = card.querySelector("tr.total td:last-child");
+    if (cell) Efeitos.countUp(cell, Number(cell.textContent.replace(/\D/g, "")) || 0);
+  }
 }
 function hideCard() { $("overlay").hidden = true; }
 const row = (label, v) => `<tr><td>${label}</td><td>${v === 0 ? "0" : (v > 0 ? "+" : "−") + fmt(Math.abs(v))}</td></tr>`;
@@ -610,6 +621,12 @@ function breakdownRows() {
   if (sc.slide) t += row("Deslizes", -sc.slide);
   if (sc.hint) t += row("Dicas", -sc.hint);
   return t;
+}
+
+// ================= Comemoração =================
+function celebrate() {
+  Efeitos.confetti(DIRS.map(d => d.color).concat(["#ffffff"]));
+  Efeitos.vibrate([25, 40, 25, 40, 70]);
 }
 
 // ================= Travamento =================
@@ -623,13 +640,13 @@ function checkStuck() {
   stuck = dead;
   if (mode === "daily") { if (dead) finishDaily(false); return; }
   $("banner").hidden = !dead;
-  if (dead && !wasStuck && lives > 0) Som.stuck();
+  if (dead && !wasStuck && lives > 0) { Som.stuck(); Efeitos.shake(); Efeitos.vibrate([40, 50, 40]); }
   if (dead && lives <= 0) outOfLives("Travou sem vidas para desfazer.");
 }
 // Ficou sem vidas e precisa recomeçar. Fase comum: recomeça sem vidas. Chefe: o mundo volta para a primeira fase.
 function outOfLives(why) {
   gameOver = true; busy = false; updateHud();
-  Som.lose();
+  Som.lose(); Efeitos.shake(8, 0.45); Efeitos.vibrate([60, 60, 120]);
   store.set("hx6_attempt", null);
   $("banner").hidden = true;
   const n = cur.n, w = cur.w, first = (w - 1) * 10 + 1;
@@ -645,7 +662,7 @@ function outOfLives(why) {
 
 // ================= Interação =================
 function tap(x, y) {
-  if (busy || gameOver || !$("overlay").hidden) return;
+  if (busy || gameOver || !$("overlay").hidden || Efeitos.introBusy()) return;
   let best = null, bd = size * 0.95;
   for (const p of pieces) {
     const c = center(p.c, p.r), d = Math.hypot(c.x - x, c.y - y);
@@ -674,6 +691,9 @@ function tap(x, y) {
     sc.exit += pts;
     Som.exit(sc.streak);
     Colecao.stat("maxCombo", sc.streak, "max");
+    Efeitos.burst(from.x, from.y, DIRS[best.d].color, sc.streak >= 5 ? 22 : 14, sc.streak >= 5 ? 1.3 : 1);
+    if (sc.streak >= 5) { Efeitos.ring(from.x, from.y, DIRS[best.d].color, size * 3); if (sc.streak === 5 || sc.streak % 5 === 0) Efeitos.flash(0.3); }
+    Efeitos.vibrate(sc.streak >= 5 ? 22 : 10);
     popup(from.x, from.y - size * 0.6, mult > 1 ? `+${pts} ×${mult}` : `+${pts}`, mult > 1 ? "#f59e0b" : "#2fb344");
     if (best.rot && wasRotated) { sc.rot += 15; popup(from.x, from.y - size * 1.5, "Giro +15", "#8b3ddb"); Som.bonus(); Colecao.stat("rotBonus"); }
     const a = DIRS[best.d].angle * Math.PI / 180, dist = Math.max(cv.clientWidth, cv.clientHeight) * 1.2;
@@ -697,6 +717,7 @@ function tap(x, y) {
     anims.push({ piece: best, from, to: from, t: 0, dur: 260, type: "nudge", blockKey: key(g.c, g.r) });
     Som.paint();
     Colecao.stat("paints");
+    Efeitos.splash(gc.x, gc.y, DIRS[g.d].color, size); Efeitos.vibrate(14);
     lastRotated = new Set();
     updateHud();
     if (mode === "daily") saveDailySnap();
@@ -713,7 +734,7 @@ function tap(x, y) {
     Som.slide(m.paint != null);
     if (m.paint != null) Colecao.stat("paints");
     if (lastRotated.size) Som.rotate(lastRotated.size);
-    anims.push({ piece: moved, from, to: center(m.to.c, m.to.r), t: 0, dur: 360, type: "slide", blockKey: key(m.blocker.c, m.blocker.r) });
+    anims.push({ piece: moved, from, to: center(m.to.c, m.to.r), t: 0, dur: 360, type: "slide", blockKey: key(m.blocker.c, m.blocker.r), paintId: m.paint });
     updateHud();
     if (mode === "daily") saveDailySnap();
     setTimeout(checkStuck, 380);
@@ -823,6 +844,7 @@ function finishLevel() {
   Colecao.addCoins(coins);
   Som.win(stars);
   if (note && !warn) Som.jingle();
+  celebrate();
   showCard({ title: n % 10 === 0 ? "Chefe derrotado!" : "Fase concluída!", stars, animStars: true, text: `${moves} jogadas (meta: ${cur.par}).`,
     table: t, note, noteWarn: warn, coins,
     buttons: [btns, [{ label: "Ver ranking da fase", link: true, fn: () => { hideCard(); openRanking("fase", n); } }]] });
@@ -876,7 +898,7 @@ function finishDaily(win) {
   store.set("hx5_daily", { date: cur.day, status: "done", result, synced: false });
   bumpStreak(cur.day);
   syncDaily();
-  if (win) Som.win(stars); else Som.lose();
+  if (win) { Som.win(stars); celebrate(); } else Som.lose();
   // Moedas do desafio: 20 por terminar + 5 por estrela + 5 por dia seguido (até 50)
   const st = currentStreak();
   const coins = (win ? 20 + stars * 5 : 5) + Math.min(50, 5 * st);
@@ -1257,6 +1279,8 @@ function frame(now) {
   if ($("gameScreen").hidden) { requestAnimationFrame(frame); return; }
   Temas.frame(dt);
   ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.save();
+  Efeitos.preTransform(ctx, dt);
   ctx.drawImage(boardLayer, 0, 0, cv.clientWidth, cv.clientHeight);
   const movingIds = new Set(anims.filter(a => a.type === "slide").map(a => a.piece.id));
   const shake = new Map();
@@ -1269,13 +1293,18 @@ function frame(now) {
     if (movingIds.has(p.id)) continue;
     const c = center(p.c, p.r);
     const lift = hintId === p.id ? Math.sin(pulse) * size * 0.12 - size * 0.1 : 0;
-    drawPiece(p, c.x + (shake.get(key(p.c, p.r)) || 0), c.y + lift, hintId === p.id, angleFor(p, dt));
+    const io = Efeitos.introFor(p.id, size); // peças caindo no início da fase
+    if (io) { if (io.alpha <= 0) continue; ctx.globalAlpha = io.alpha; }
+    drawPiece(p, c.x + (shake.get(key(p.c, p.r)) || 0), c.y + lift + (io ? io.dy : 0), hintId === p.id, angleFor(p, dt));
+    ctx.globalAlpha = 1;
   }
   anims = anims.filter(a => {
     a.t = Math.min(1, a.t + dt / a.dur);
     if (a.type === "fly" || a.type === "slide") {
       const k = a.type === "fly" ? a.t * a.t : ease(a.t);
-      drawPiece(a.piece, a.from.x + (a.to.x - a.from.x) * k, a.from.y + (a.to.y - a.from.y) * k, false, angleFor(a.piece, dt));
+      const x = a.from.x + (a.to.x - a.from.x) * k, y = a.from.y + (a.to.y - a.from.y) * k;
+      if (a.type === "fly" && a.piece.d >= 0) Efeitos.trail(x, y, DIRS[a.piece.d].color, size);
+      drawPiece(a.piece, x, y, false, angleFor(a.piece, dt));
     }
     if (a.type === "text") {
       ctx.save(); ctx.globalAlpha = 1 - a.t * a.t;
@@ -1286,9 +1315,16 @@ function frame(now) {
       const xx = Math.min(Math.max(a.x, half), cw - half); // não deixa o texto sair da tela
       ctx.strokeText(a.text, xx, yy); ctx.fillText(a.text, xx, yy); ctx.restore();
     }
-    if (a.t >= 1 && a.type === "slide") busy = false;
+    if (a.t >= 1 && a.type === "slide") {
+      busy = false;
+      // chegou: poeira, vibração e, se pintou, respingo de tinta
+      Efeitos.dust(a.to.x, a.to.y, size); Efeitos.vibrate(18);
+      if (a.paintId != null) { const g = pieces.find(q => q.id === a.paintId); if (g && g.d >= 0) { const gc = center(g.c, g.r); Efeitos.splash(gc.x, gc.y, DIRS[g.d].color, size); } }
+    }
     return a.t < 1;
   });
+  Efeitos.draw(ctx, dt, cv.clientWidth, cv.clientHeight);
+  ctx.restore();
   requestAnimationFrame(frame);
 }
 
@@ -1339,6 +1375,16 @@ function refreshSoundButtons() {
   }
 }
 for (const id of ["btnSound", "btnSoundGame"]) $(id).onclick = () => { Som.toggle(); refreshSoundButtons(); };
+// Vibração (só aparece onde o navegador permite, como no Android)
+function refreshVibButton() {
+  const b = $("btnVib"); b.hidden = !Efeitos.canVibrate;
+  b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3.5" width="8" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>' +
+    (Efeitos.vibOn ? '<path d="M4.5 8.5v7M19.5 8.5v7M2 10.5v3M22 10.5v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' : '<path d="M4 4l16 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>') + "</svg>";
+  b.setAttribute("aria-pressed", String(Efeitos.vibOn));
+  b.setAttribute("aria-label", Efeitos.vibOn ? "Desligar vibração" : "Ligar vibração");
+}
+$("btnVib").onclick = () => { Efeitos.toggleVib(); refreshVibButton(); };
+refreshVibButton();
 refreshSoundButtons();
 // Navegadores só liberam o áudio dentro de um gesto. No iPhone, encostar o dedo (pointerdown/touchstart)
 // NÃO conta: só quando o dedo sai da tela (touchend) ou num clique.
