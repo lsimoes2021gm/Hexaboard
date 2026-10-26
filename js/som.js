@@ -1,8 +1,34 @@
 // HEXABOARD — efeitos sonoros sintetizados com Web Audio (nenhum arquivo de áudio).
 // O áudio só começa depois do primeiro toque na tela (regra dos navegadores).
 const Som = (() => {
-  let ac = null, master = null, noiseBuf = null, on = true;
+  let ac = null, master = null, noiseBuf = null, on = true, primed = false;
   try { on = localStorage.getItem("hx_som") !== "0"; } catch (e) {}
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  // iPhone: sem isto, o som fica mudo com a chave lateral no silencioso.
+  // iOS 17+: pede a sessão de áudio "playback". Versões antigas: um áudio mudo em loop faz o mesmo papel.
+  let silentEl = null;
+  function setSession() {
+    try { if (navigator.audioSession) navigator.audioSession.type = on ? "playback" : "auto"; } catch (e) {}
+  }
+  function silentLoop(play) {
+    if (!isIOS || navigator.audioSession) return;
+    if (play) {
+      if (!silentEl) {
+        // 0,5 s de silêncio em WAV, gerado aqui mesmo
+        const n = 4000, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+        const w = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+        w(0, "RIFF"); v.setUint32(4, 36 + n, true); w(8, "WAVE"); w(12, "fmt "); v.setUint32(16, 16, true);
+        v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 8000, true); v.setUint32(28, 8000, true);
+        v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, "data"); v.setUint32(40, n, true);
+        for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+        silentEl = document.createElement("audio");
+        silentEl.src = URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+        silentEl.loop = true; silentEl.setAttribute("playsinline", ""); silentEl.preload = "auto";
+      }
+      const pr = silentEl.play(); if (pr && pr.catch) pr.catch(() => {});
+    } else if (silentEl) silentEl.pause();
+  }
 
   function ensure() {
     if (!ac) {
@@ -13,7 +39,8 @@ const Som = (() => {
       const comp = ac.createDynamicsCompressor(); // evita estourar quando vários sons tocam juntos
       master.connect(comp); comp.connect(ac.destination);
     }
-    if (ac.state === "suspended") ac.resume();
+    // "suspended" (pausado) ou "interrupted" (iPhone depois de ligação ou de ir para segundo plano)
+    if (ac.state !== "running" && ac.state !== "closed") { const r = ac.resume(); if (r && r.catch) r.catch(() => {}); }
     return ac;
   }
 
@@ -70,11 +97,23 @@ const Som = (() => {
     toggle() {
       on = !on;
       try { localStorage.setItem("hx_som", on ? "1" : "0"); } catch (e) {}
-      if (on) play(() => bell(880, 0, 0.15, 0.3));
+      setSession();
+      if (on) { this.unlock(); play(() => bell(880, 0, 0.15, 0.3)); } else silentLoop(false);
       return on;
     },
-    unlock() { if (on) ensure(); },
-    suspend() { if (ac && ac.state === "running") ac.suspend(); },
+    // Chamado dentro de um toque/clique: libera o áudio (exigência dos navegadores, principalmente no iPhone)
+    unlock() {
+      if (!on) return;
+      setSession();
+      if (!ensure()) return;
+      if (!primed || ac.state !== "running") {
+        // tocar um som vazio dentro do gesto é o que realmente destrava o áudio no iPhone
+        try { const b = ac.createBuffer(1, 1, 22050), src = ac.createBufferSource(); src.buffer = b; src.connect(ac.destination); src.start(0); } catch (e) {}
+        primed = true;
+      }
+      silentLoop(true);
+    },
+    suspend() { if (ac && ac.state === "running") ac.suspend(); silentLoop(false); },
 
     // Botões da interface
     click: () => play(() => tone({ f: 1250, f2: 900, dur: 0.05, vol: 0.12, type: "triangle" })),

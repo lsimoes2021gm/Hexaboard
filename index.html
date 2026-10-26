@@ -1258,9 +1258,9 @@ function refreshSoundButtons() {
 }
 for (const id of ["btnSound", "btnSoundGame"]) $(id).onclick = () => { Som.toggle(); refreshSoundButtons(); };
 refreshSoundButtons();
-// Navegadores só liberam o áudio depois de um toque
-document.addEventListener("pointerdown", () => Som.unlock(), { passive: true });
-document.addEventListener("keydown", () => Som.unlock());
+// Navegadores só liberam o áudio dentro de um gesto. No iPhone, encostar o dedo (pointerdown/touchstart)
+// NÃO conta: só quando o dedo sai da tela (touchend) ou num clique.
+for (const ev of ["touchend", "click", "keydown", "pointerdown"]) document.addEventListener(ev, () => Som.unlock(), { capture: true, passive: true });
 // Clique suave em todos os botões (menos os de som, que tocam o próprio aviso)
 document.addEventListener("click", e => {
   const b = e.target.closest("button");
